@@ -7,5 +7,5 @@
 </p>
     
 <p align="center">
-  If you are on windows than this is a considerable alternative to audio queuing from Qlab.
+  Simple audio management for me and my friends
 </p>
