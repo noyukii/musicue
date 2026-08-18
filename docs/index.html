@@ -47,11 +47,39 @@
             flex-direction: column;
         }
 
+        .brand-lockup {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
         .app-mark {
-            width: 82px;
-            height: 82px;
-            object-fit: contain;
-            margin-bottom: 28px;
+            width: 64px;
+            height: 64px;
+            flex: 0 0 auto;
+            display: flex;
+            align-items: end;
+            justify-content: center;
+            gap: 5px;
+            padding: 12px;
+            background: var(--field);
+            border: 1px solid var(--line);
+        }
+
+        .app-mark span {
+            width: 7px;
+            border-radius: 4px;
+            background: var(--text);
+        }
+
+        .app-mark span:nth-child(1), .app-mark span:nth-child(3) { height: 19px; }
+        .app-mark span:nth-child(2) { height: 34px; background: var(--ready); }
+
+        .brand-copy { min-width: 0; }
+
+        .brand-copy .tagline {
+            max-width: 14rem;
+            margin-top: 4px;
         }
 
         .wordmark, .eyebrow, .details dt, .footer {
@@ -112,7 +140,7 @@
             margin: 0;
             font-size: clamp(2.85rem, 7vw, 5.25rem);
             font-weight: 750;
-            letter-spacing: -.065em;
+            letter-spacing: -.04em;
             line-height: .9;
         }
 
@@ -219,7 +247,8 @@
 
             .identity, .download { padding: 32px 24px; }
             .identity { border-right: 0; border-bottom: 1px solid var(--line); }
-            .app-mark { width: 58px; height: 58px; margin-bottom: 18px; }
+            .app-mark { width: 56px; height: 56px; padding: 10px; }
+            .brand-lockup { gap: 13px; }
             .tagline { max-width: none; }
             .signal { display: none; }
             h1 { font-size: clamp(3rem, 16vw, 4.6rem); }
@@ -236,9 +265,13 @@
 <body>
     <main>
         <aside class="identity" aria-label="MusiCue">
-            <img class="app-mark" src="../Assets/appicon/appicon_musicue.png" alt="MusiCue app icon">
-            <p class="wordmark">MusiCue</p>
-            <p class="tagline">Audio show control for your cues and workspaces.</p>
+            <div class="brand-lockup">
+                <div class="app-mark" aria-hidden="true"><span></span><span></span><span></span></div>
+                <div class="brand-copy">
+                    <p class="wordmark">MusiCue</p>
+                    <p class="tagline">Audio show control for your cues and workspaces.</p>
+                </div>
+            </div>
             <div class="signal" aria-hidden="true">
                 <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
             </div>
