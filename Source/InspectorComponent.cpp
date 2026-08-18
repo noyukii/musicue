@@ -1119,7 +1119,7 @@ public:
         constexpr int rowHeight = 24;
         constexpr int rowGap = 8;
         constexpr int sectionGap = 16;
-        constexpr int labelWidth = 80;
+        static constexpr int labelWidth = 80;
         constexpr int buttonWidth = 76;
         constexpr int toggleWidth = 170;
 
