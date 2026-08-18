@@ -3,8 +3,8 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Download MusiCue, an audio show-control app for macOS.">
-    <title>MusiCue — Download</title>
+    <meta name="description" content="Download MusiCue releases for macOS and Windows.">
+    <title>MusiCue — Downloads</title>
     <style>
         :root {
             color-scheme: dark;
@@ -15,8 +15,6 @@
             --text: #d9d9d9;
             --muted: #a5a5a5;
             --faint: #777777;
-            --go: #a9a5ba;
-            --go-text: #26262a;
             --ready: #43d158;
         }
 
@@ -32,223 +30,201 @@
         }
 
         main {
-            width: min(100% - 40px, 1040px);
+            width: min(100% - 40px, 960px);
             min-height: 100vh;
             margin: 0 auto;
             display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(260px, 310px);
+            grid-template-columns: minmax(230px, .82fr) minmax(390px, 1.18fr);
             border-inline: 1px solid var(--line);
         }
 
-        .content {
+        .identity {
             min-height: 700px;
-            padding: clamp(42px, 7vw, 76px);
+            padding: 52px 38px 38px;
             display: flex;
             flex-direction: column;
+            background: var(--panel);
+            border-right: 1px solid var(--line);
         }
 
-        .product-name, .history-label, .release-note, .footer {
+        .app-icon {
+            width: 88px;
+            height: 88px;
+            display: block;
+            border-radius: 20px;
+        }
+
+        .brand {
+            margin-top: 82px;
+        }
+
+        .wordmark, .release-kicker, .file-meta, .footer {
             letter-spacing: .08em;
             text-transform: uppercase;
         }
 
-        .product-name {
-            margin: 0 0 22px;
+        .wordmark {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: 750;
+        }
+
+        .tagline {
+            max-width: 14rem;
+            margin: 9px 0 0;
             color: var(--muted);
-            font-size: .73rem;
+            font-size: .96rem;
+            line-height: 1.55;
+        }
+
+        .releases {
+            padding: 52px;
+        }
+
+        .release-kicker {
+            margin: 0 0 12px;
+            color: var(--muted);
+            font-size: .7rem;
             font-weight: 750;
         }
 
         h1 {
-            max-width: 8ch;
-            margin: 0;
-            font-size: clamp(3rem, 7vw, 5.6rem);
-            font-weight: 750;
-            letter-spacing: -.04em;
-            line-height: .91;
-        }
-
-        .intro {
-            max-width: 31rem;
-            margin: 29px 0 0;
-            color: var(--muted);
-            font-size: 1.05rem;
-            line-height: 1.65;
-        }
-
-        .download-action {
-            margin-top: 44px;
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 16px;
-        }
-
-        .button {
-            display: inline-flex;
-            min-height: 48px;
-            align-items: center;
-            justify-content: center;
-            padding: 13px 20px;
-            background: var(--go);
-            color: var(--go-text);
-            font-weight: 750;
-            line-height: 1.2;
-            text-decoration: none;
-            transition: background-color 120ms ease, transform 120ms ease;
-        }
-
-        .button:hover { background: #bfbbd1; transform: translateY(-1px); }
-
-        .platform-note {
-            color: var(--muted);
-            font-size: .88rem;
-        }
-
-        .footer {
-            margin-top: auto;
-            padding-top: 56px;
-            color: var(--muted);
-            font-size: .68rem;
-        }
-
-        .footer a { color: inherit; }
-
-        .history {
-            padding: 34px 30px;
-            background: var(--panel);
-            border-left: 1px solid var(--line);
-        }
-
-        .history-head {
-            min-height: 62px;
-            display: flex;
-            justify-content: flex-end;
-        }
-
-        .app-icon {
-            width: 58px;
-            height: 58px;
-            display: block;
-            border-radius: 13px;
-        }
-
-        .history-label {
-            margin: 56px 0 10px;
-            color: var(--muted);
-            font-size: .69rem;
-            font-weight: 750;
-        }
-
-        .history h2 {
-            margin: 0 0 25px;
-            font-size: 1.42rem;
-            letter-spacing: -.02em;
+            margin: 0 0 34px;
+            font-size: clamp(2rem, 5vw, 3rem);
+            letter-spacing: -.03em;
+            line-height: 1;
         }
 
         .release-list {
-            margin: 0;
-            padding: 0;
-            list-style: none;
-            border-top: 1px solid var(--line);
+            display: grid;
+            gap: 16px;
         }
 
         .release {
-            padding: 20px 0;
-            border-bottom: 1px solid var(--line);
+            padding: 0 20px;
+            background: var(--field);
+            border: 1px solid var(--line);
+            border-radius: 14px;
         }
 
-        .release-current { color: var(--text); }
-        .release-muted { color: var(--faint); }
-
-        .release-row {
+        .release-summary {
+            padding: 22px 0 19px;
             display: flex;
             align-items: baseline;
             justify-content: space-between;
-            gap: 12px;
+            gap: 16px;
         }
 
-        .release-version { font-size: 1rem; font-weight: 700; }
-
-        .release-note {
-            color: var(--ready);
-            font-size: .63rem;
+        .release-version {
+            font-size: 1.1rem;
             font-weight: 750;
         }
 
-        .release-muted .release-note { color: inherit; }
-
-        .release-detail {
-            margin: 7px 0 0;
+        .release-date {
             color: var(--muted);
             font-size: .82rem;
-            line-height: 1.45;
+            white-space: nowrap;
         }
 
-        .release-muted .release-detail { color: inherit; }
+        .files {
+            margin: 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .file + .file { border-top: 1px solid var(--line); }
+
+        .file a {
+            min-height: 64px;
+            padding: 13px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            color: var(--text);
+            text-decoration: none;
+            transition: color 120ms ease;
+        }
+
+        .file a:hover { color: var(--ready); }
+
+        .file-name { font-size: .96rem; font-weight: 650; }
+
+        .file-meta {
+            flex: 0 0 auto;
+            color: var(--muted);
+            font-size: .65rem;
+            font-weight: 750;
+        }
+
+        .footer {
+            margin: 38px 0 0;
+            color: var(--muted);
+            font-size: .67rem;
+        }
+
+        .footer a { color: inherit; }
 
         a:focus-visible {
             outline: 3px solid var(--ready);
             outline-offset: 3px;
         }
 
-        @media (max-width: 720px) {
+        @media (max-width: 680px) {
             main {
                 width: 100%;
-                display: flex;
-                flex-direction: column;
+                display: block;
                 border: 0;
             }
 
-            .content { min-height: 0; padding: 44px 26px; }
-            .history { padding: 28px 26px 38px; border-top: 1px solid var(--line); border-left: 0; }
-            .history-head { min-height: 58px; }
-            .app-icon { width: 54px; height: 54px; }
-            .history-label { margin-top: 37px; }
-            .footer { margin-top: 52px; padding-top: 0; }
+            .identity { min-height: 0; padding: 34px 26px; border-right: 0; border-bottom: 1px solid var(--line); }
+            .app-icon { width: 64px; height: 64px; border-radius: 15px; }
+            .brand { margin-top: 34px; }
+            .releases { padding: 40px 26px; }
+            h1 { margin-bottom: 28px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
-            .button { transition: none; }
-            .button:hover { transform: none; }
+            .file a { transition: none; }
         }
     </style>
 </head>
 <body>
     <main>
-        <section class="content" aria-labelledby="page-title">
-            <p class="product-name">MusiCue for macOS</p>
-            <h1 id="page-title">Cue the next sound.</h1>
-            <p class="intro">Build an audio workspace, arrange your cues, and keep a show ready to run.</p>
-            <div class="download-action">
-                <a class="button" href="https://github.com/noyukii/musicue/releases">View release downloads</a>
-                <span class="platform-note">MusiCue 0.1.0 · macOS</span>
+        <aside class="identity" aria-label="MusiCue">
+            <img class="app-icon" src="assets/appicon_musicue.png" alt="MusiCue app icon">
+            <div class="brand">
+                <p class="wordmark">MusiCue</p>
+                <p class="tagline">Audio show control for your cues and workspaces.</p>
             </div>
-            <p class="footer"><a href="https://github.com/noyukii/musicue">View source on GitHub</a></p>
-        </section>
-
-        <aside class="history" aria-labelledby="release-history-title">
-            <div class="history-head">
-                <img class="app-icon" src="https://raw.githubusercontent.com/noyukii/musicue/main/Assets/appicon/appicon_musicue.png" alt="MusiCue app icon">
-            </div>
-            <p class="history-label">MusiCue</p>
-            <h2 id="release-history-title">Release history</h2>
-            <ol class="release-list">
-                <li class="release release-current">
-                    <div class="release-row">
-                        <span class="release-version">v0.1.0</span>
-                        <span class="release-note">Current</span>
-                    </div>
-                    <p class="release-detail">First tagged release.</p>
-                </li>
-                <li class="release release-muted">
-                    <div class="release-row">
-                        <span class="release-version">Earlier releases</span>
-                    </div>
-                    <p class="release-detail">No earlier tagged releases.</p>
-                </li>
-            </ol>
         </aside>
+
+        <section class="releases" aria-labelledby="page-title">
+            <h1 id="page-title">Releases</h1>
+            <div class="release-list">
+                <article class="release" aria-labelledby="release-v010">
+                    <div class="release-summary">
+                        <span class="release-version" id="release-v010">v0.1.0</span>
+                        <time class="release-date" datetime="2026-08-18">18 Aug 2026</time>
+                    </div>
+                    <ul class="files" aria-label="v0.1.0 downloads">
+                        <li class="file">
+                            <a href="https://github.com/noyukii/musicue/releases/download/v0.1.0/MusiCue-macOS.zip">
+                                <span class="file-name">MusiCue-macOS.zip</span>
+                                <span class="file-meta">3.8 MB</span>
+                            </a>
+                        </li>
+                        <li class="file">
+                            <a href="https://github.com/noyukii/musicue/releases/download/v0.1.0/MusiCue-Windows.zip">
+                                <span class="file-name">MusiCue-Windows.zip</span>
+                                <span class="file-meta">3.7 MB</span>
+                            </a>
+                        </li>
+                    </ul>
+                </article>
+            </div>
+            <p class="footer"><a href="https://github.com/noyukii/musicue/releases">All releases on GitHub</a></p>
+        </section>
     </main>
 </body>
 </html>
