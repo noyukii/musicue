@@ -16,6 +16,7 @@
             --muted: #a5a5a5;
             --faint: #777777;
             --ready: #43d158;
+            --notice: #d1a343;
         }
 
         * { box-sizing: border-box; }
@@ -180,6 +181,39 @@
             font-weight: 750;
         }
 
+        .notice {
+            margin: 30px 0 0;
+            padding: 17px 20px;
+            background: var(--field);
+            border: 1px solid var(--line);
+            border-left: 2px solid var(--notice);
+            border-radius: 14px;
+        }
+
+        .notice summary {
+            color: var(--text);
+            cursor: pointer;
+            font-size: .92rem;
+            font-weight: 650;
+        }
+
+        .notice summary::marker { color: var(--notice); }
+
+        .notice p {
+            margin: 13px 0 0;
+            color: var(--muted);
+            font-size: .88rem;
+            line-height: 1.6;
+        }
+
+        .notice a { color: inherit; }
+
+        .notice code {
+            color: var(--faint);
+            font-size: .78rem;
+            overflow-wrap: anywhere;
+        }
+
         .footer {
             margin: 38px 0 0;
             color: var(--muted);
@@ -227,6 +261,14 @@
             <h1 id="page-title">Releases</h1>
             <div class="release-list" id="release-list" aria-busy="true" aria-live="polite"></div>
             <p class="release-status" id="release-status">Loading releases…</p>
+
+            <details class="notice">
+                <summary>Windows may flag this download as unsafe</summary>
+                <p>MusiCue is not code-signed yet. Microsoft Defender’s machine-learning heuristic flags unsigned programs that few people have downloaded so far, so it may block MusiCue.exe or quarantine it as a trojan. This is a false positive.</p>
+                <p>On <a href="https://www.virustotal.com/gui/file/d3f3795eef5e7cf36f638eb00aa8eaac6b13526fef5edd2e602a94577cbf8534">VirusTotal</a>, 1 of 70 engines flags the v0.1.1 build — Defender’s own classifier. Every other engine reports it clean. Each release is built in the open from source by <a href="https://github.com/noyukii/musicue/actions">GitHub Actions</a>, so you can check the binary yourself: <code>SHA-256 d3f3795eef5e7cf36f638eb00aa8eaac6b13526fef5edd2e602a94577cbf8534</code></p>
+                <p>If it was already quarantined, open Windows Security → Virus &amp; threat protection → Protection history, find the MusiCue entry and choose Restore. If SmartScreen blocks it instead, choose More info → Run anyway.</p>
+            </details>
+
             <p class="footer"><a href="https://github.com/noyukii/musicue/releases">All releases on GitHub</a></p>
         </section>
     </main>
