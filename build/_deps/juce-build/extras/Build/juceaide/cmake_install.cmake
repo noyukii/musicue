@@ -1,4 +1,4 @@
-# Install script for directory: /Users/barni/Documents/MusiCue/build/_deps/juce-src/extras/Build/juceaide
+# Install script for directory: /Users/barni/Documents/a/musicue/build/_deps/juce-src/extras/Build/juceaide
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

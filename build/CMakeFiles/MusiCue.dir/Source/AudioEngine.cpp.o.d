@@ -1,17 +1,17 @@
 CMakeFiles/MusiCue.dir/Source/AudioEngine.cpp.o: \
-  /Users/barni/Documents/MusiCue/Source/AudioEngine.cpp \
-  /Users/barni/Documents/MusiCue/Source/AudioEngine.h \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_audio_devices/juce_audio_devices.h \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_events/juce_events.h \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_core/juce_core.h \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_core/system/juce_TargetPlatform.h \
+  /Users/barni/Documents/a/musicue/Source/AudioEngine.cpp \
+  /Users/barni/Documents/a/musicue/Source/AudioEngine.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_audio_devices/juce_audio_devices.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_events/juce_events.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_core/juce_core.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_core/system/juce_TargetPlatform.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/TargetConditionals.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/AvailabilityVersions.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/Availability.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/AvailabilityInternal.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/AvailabilityInternalLegacy.h \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_core/system/juce_StandardHeader.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_core/system/juce_StandardHeader.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/algorithm \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__config \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__config_site \

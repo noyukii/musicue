@@ -1,17 +1,17 @@
 extras/Build/juceaide/CMakeFiles/juceaide.dir/__/juce_build_tools/juce_build_tools.cpp.o: \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/extras/Build/juce_build_tools/juce_build_tools.cpp \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/extras/Build/juce_build_tools/juce_build_tools.h \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_gui_basics/juce_gui_basics.h \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_graphics/juce_graphics.h \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_core/juce_core.h \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_core/system/juce_TargetPlatform.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/extras/Build/juce_build_tools/juce_build_tools.cpp \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/extras/Build/juce_build_tools/juce_build_tools.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_gui_basics/juce_gui_basics.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_graphics/juce_graphics.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_core/juce_core.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_core/system/juce_TargetPlatform.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/TargetConditionals.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/AvailabilityVersions.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/Availability.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/AvailabilityInternal.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/AvailabilityInternalLegacy.h \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_core/system/juce_StandardHeader.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_core/system/juce_StandardHeader.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/algorithm \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__config \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__config_site \

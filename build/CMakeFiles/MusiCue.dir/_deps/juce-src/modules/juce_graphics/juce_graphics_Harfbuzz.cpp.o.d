@@ -1,7 +1,7 @@
 CMakeFiles/MusiCue.dir/_deps/juce-src/modules/juce_graphics/juce_graphics_Harfbuzz.cpp.o: \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_graphics/juce_graphics_Harfbuzz.cpp \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_core/system/juce_CompilerWarnings.h \
-  /Users/barni/Documents/MusiCue/build/_deps/juce-src/modules/juce_core/system/juce_TargetPlatform.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_graphics/juce_graphics_Harfbuzz.cpp \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_core/system/juce_CompilerWarnings.h \
+  /Users/barni/Documents/a/musicue/build/_deps/juce-src/modules/juce_core/system/juce_TargetPlatform.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/TargetConditionals.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/AvailabilityMacros.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/AvailabilityVersions.h \

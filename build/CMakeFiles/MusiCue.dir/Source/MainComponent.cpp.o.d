@@ -1,6 +1,6 @@
 CMakeFiles/MusiCue.dir/Source/MainComponent.cpp.o: \
-  /Users/barni/Documents/MusiCue/Source/MainComponent.cpp \
-  /Users/barni/Documents/MusiCue/Source/MainComponent.h \
+  /Users/barni/Documents/a/musicue/Source/MainComponent.cpp \
+  /Users/barni/Documents/a/musicue/Source/MainComponent.h \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/functional \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__config \
   /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk/usr/include/c++/v1/__config_site \
