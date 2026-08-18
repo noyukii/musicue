@@ -101,7 +101,15 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
         });
     };
     cueList.onStopCue = [this](int cueId) { engine.stopCue(cueId); };
-    cueList.onSelectionChanged = [this] { inspector.setCue(cueList.getSelectedCue()); };
+    cueList.onSelectionChanged = [this]
+    {
+        inspector.setCue(cueList.getSelectedCue());
+        juce::MessageManager::callAsync([self = juce::Component::SafePointer<MainComponent>(this)]
+        {
+            if (self != nullptr)
+                self->grabKeyboardFocus();
+        });
+    };
     cueList.onContentChanged = [this]
     {
         inspector.setAvailableCues(cueList.getCues());

@@ -105,6 +105,19 @@
             font-size: .88rem;
         }
 
+        .gatekeeper-note {
+            max-width: 31rem;
+            margin: 22px 0 0;
+            color: var(--muted);
+            font-size: .88rem;
+            line-height: 1.55;
+        }
+
+        .gatekeeper-note code {
+            color: var(--text);
+            font-size: .84em;
+        }
+
         .footer {
             margin-top: auto;
             padding-top: 56px;
@@ -224,6 +237,7 @@
                 <a class="button" href="https://github.com/noyukii/musicue/releases">View release downloads</a>
                 <span class="platform-note">MusiCue 0.1.0 · macOS</span>
             </div>
+            <p class="gatekeeper-note">If macOS says MusiCue is damaged, Gatekeeper is blocking an unsigned download. After unzipping, run the included <code>If macOS says MusiCue is damaged, open this.command</code>, or clear quarantine with <code>xattr -cr /Applications/MusiCue.app</code>.</p>
             <p class="footer"><a href="https://github.com/noyukii/musicue">View source on GitHub</a></p>
         </section>
 

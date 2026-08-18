@@ -44,6 +44,7 @@ namespace
         editor.setColour(juce::TextEditor::textColourId, Palette::textPrimary);
         editor.setIndents(6, 0);
         editor.setFont(juce::Font(juce::FontOptions().withHeight(13.0f)));
+        editor.setSelectAllWhenFocused(false);
     }
 
     class PlaceholderTab : public juce::Component
@@ -1455,7 +1456,8 @@ void InspectorComponent::rebuildTabs(bool groupSelected, bool fadeSelected)
         tabs.addTab("Levels", Palette::inspectorBg, levelsTab.get(), false);
         tabs.addTab("Trim", Palette::inspectorBg, trimTab.get(), false);
     }
-    tabs.setCurrentTabIndex(0);
+    if (tabs.getCurrentTabIndex() != 0)
+        tabs.setCurrentTabIndex(0);
     showingGroupTabs = groupSelected;
     showingFadeTabs = fadeSelected;
 }
@@ -1490,6 +1492,10 @@ void InspectorComponent::setCue(Cue* cue)
     const auto hasCue = cue != nullptr;
     tabs.setVisible(hasCue);
     emptyLabel.setVisible(! hasCue);
+
+    if (auto* focused = juce::Component::getCurrentlyFocusedComponent())
+        if (isParentOf(focused))
+            focused->giveAwayKeyboardFocus();
 }
 
 void InspectorComponent::setAvailableCues(const juce::Array<Cue>& cues)
