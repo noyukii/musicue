@@ -2,6 +2,7 @@
 #include "FadeEditorComponent.h"
 #include <juce_audio_formats/juce_audio_formats.h>
 #include <atomic>
+#include <map>
 #include <memory>
 
 namespace
@@ -80,7 +81,7 @@ namespace
         formatManager.registerBasicFormats();
 
         auto reader = std::unique_ptr<juce::AudioFormatReader>(formatManager.createReaderFor(file));
-        if (reader == nullptr)
+        if (reader == nullptr || reader->sampleRate <= 0.0 || reader->lengthInSamples <= 0)
             return result;
 
         result.lengthSeconds = static_cast<double>(reader->lengthInSamples) / reader->sampleRate;
@@ -89,26 +90,29 @@ namespace
         result.peaks.assign(static_cast<size_t>(columns) * 2, 0.0f);
 
         const auto total = reader->lengthInSamples;
-        juce::AudioBuffer<float> chunk(static_cast<int>(juce::jmin(2u, reader->numChannels)), 16384);
+        const int bufferSize = 65536;
+        juce::AudioBuffer<float> chunk(1, bufferSize);
 
-        for (juce::int64 start = 0; start < total; start += 16384)
+        // Overview only needs ~128 probes per column; still a sequential decode for compressed files.
+        const int step = juce::jmax(1, static_cast<int>(total / (static_cast<juce::int64>(columns) * 128)));
+
+        for (juce::int64 start = 0; start < total; start += bufferSize)
         {
             if (cancelled != nullptr && cancelled->load())
                 return {};
 
-            const auto toRead = static_cast<int>(juce::jmin<juce::int64>(16384, total - start));
-            reader->read(&chunk, 0, toRead, start, true, true);
+            const auto toRead = static_cast<int>(juce::jmin<juce::int64>(bufferSize, total - start));
+            reader->read(&chunk, 0, toRead, start, true, false);
+            const float* samples = chunk.getReadPointer(0);
 
-            for (int i = 0; i < toRead; ++i)
+            for (int i = 0; i < toRead; i += step)
             {
-                auto sample = chunk.getSample(0, i);
-
-                if (chunk.getNumChannels() > 1)
-                    sample = 0.5f * (sample + chunk.getSample(1, i));
-
-                const auto column = static_cast<size_t>((start + i) * columns / juce::jmax<juce::int64>(1, total));
-                result.peaks[column * 2] = juce::jmin(result.peaks[column * 2], sample);
-                result.peaks[column * 2 + 1] = juce::jmax(result.peaks[column * 2 + 1], sample);
+                const auto column = juce::jmin(columns - 1,
+                    static_cast<int>(((start + i) * static_cast<juce::int64>(columns)) / total));
+                const float sample = samples[i];
+                auto* pair = result.peaks.data() + static_cast<size_t>(column) * 2;
+                pair[0] = juce::jmin(pair[0], sample);
+                pair[1] = juce::jmax(pair[1], sample);
             }
         }
 
@@ -118,7 +122,7 @@ namespace
     class WaveformView : public juce::Component
     {
     public:
-        std::function<void(double, double)> onTrimChanged;
+        std::function<void(double, double, bool)> onTrimChanged;
 
         WaveformView() = default;
 
@@ -141,9 +145,7 @@ namespace
 
             requestedFile = file;
             cancelLoad();
-            peaks.clear();
-            hasPeaks = false;
-            lengthSeconds = 0.0;
+            clearPeaks();
             trimStart = pendingTrimStart;
             trimEnd = pendingTrimEnd;
 
@@ -153,11 +155,9 @@ namespace
                 return;
             }
 
-            if (cached.file == requestedFile)
+            if (const auto* entry = findCached(requestedFile))
             {
-                peaks = cached.peaks;
-                lengthSeconds = cached.lengthSeconds;
-                hasPeaks = true;
+                adoptPeaks(entry->peaks, entry->lengthSeconds);
                 applyPendingTrim();
                 repaint();
                 return;
@@ -196,21 +196,11 @@ namespace
                 return;
             }
 
-            const auto columns = static_cast<int>(peaks.size() / 2);
-            const auto width = static_cast<int>(waveArea.getWidth());
-            const auto midY = waveArea.getCentreY();
-            const auto halfHeight = waveArea.getHeight() * 0.5f;
+            if (wavePath.isEmpty())
+                rebuildWavePath(waveArea);
 
             g.setColour(Palette::standbyGreen.withAlpha(0.75f));
-
-            for (int x = 0; x < width; ++x)
-            {
-                const auto column = juce::jmin(columns - 1, x * columns / width);
-                const auto bottom = midY - peaks[column * 2] * halfHeight;
-                const auto top = midY - peaks[column * 2 + 1] * halfHeight;
-                g.drawVerticalLine(static_cast<int>(waveArea.getX()) + x, top,
-                                   juce::jmax(top + 1.0f, bottom));
-            }
+            g.fillPath(wavePath);
 
             const auto startX = timeToX(trimStart);
             const auto endX = timeToX(trimEnd);
@@ -223,6 +213,11 @@ namespace
             g.setColour(juce::Colours::white);
             g.fillRect(startX - 1.5f, waveArea.getY(), 3.0f, waveArea.getHeight());
             g.fillRect(endX - 1.5f, waveArea.getY(), 3.0f, waveArea.getHeight());
+        }
+
+        void resized() override
+        {
+            wavePath.clear();
         }
 
         void mouseDown(const juce::MouseEvent& e) override
@@ -252,14 +247,19 @@ namespace
             else
                 trimEnd = juce::jlimit(trimStart + 0.01, lengthSeconds, time);
 
+            trimDirty = true;
             repaint();
 
             if (onTrimChanged != nullptr)
-                onTrimChanged(trimStart, trimEnd);
+                onTrimChanged(trimStart, trimEnd, false);
         }
 
         void mouseUp(const juce::MouseEvent&) override
         {
+            if (trimDirty && onTrimChanged != nullptr)
+                onTrimChanged(trimStart, trimEnd, true);
+
+            trimDirty = false;
             dragging = 0;
         }
 
@@ -270,11 +270,34 @@ namespace
         }
 
     private:
+        struct Cache
+        {
+            juce::int64 modTime = 0;
+            std::vector<float> peaks;
+            double lengthSeconds = 0.0;
+        };
+
         void cancelLoad()
         {
             if (loadCancelled != nullptr)
                 loadCancelled->store(true);
             loadCancelled.reset();
+        }
+
+        void clearPeaks()
+        {
+            peaks.clear();
+            wavePath.clear();
+            hasPeaks = false;
+            lengthSeconds = 0.0;
+        }
+
+        void adoptPeaks(const std::vector<float>& newPeaks, double newLength)
+        {
+            peaks = newPeaks;
+            lengthSeconds = newLength;
+            hasPeaks = ! peaks.empty();
+            wavePath.clear();
         }
 
         void applyPendingTrim()
@@ -285,29 +308,71 @@ namespace
                           : pendingTrimEnd;
         }
 
+        const Cache* findCached(const juce::File& file) const
+        {
+            const auto it = peakCache.find(file.getFullPathName());
+            if (it == peakCache.end())
+                return nullptr;
+            if (it->second.modTime != file.getLastModificationTime().toMilliseconds())
+                return nullptr;
+            return &it->second;
+        }
+
+        void rebuildWavePath(juce::Rectangle<float> area)
+        {
+            wavePath.clear();
+
+            const int columns = static_cast<int>(peaks.size() / 2);
+            const int width = static_cast<int>(area.getWidth());
+            if (columns <= 0 || width <= 0)
+                return;
+
+            const auto midY = area.getCentreY();
+            const auto halfHeight = area.getHeight() * 0.5f;
+            const auto x0 = area.getX();
+
+            wavePath.startNewSubPath(x0, midY - peaks[1] * halfHeight);
+
+            for (int x = 0; x < width; ++x)
+            {
+                const auto column = juce::jmin(columns - 1, x * columns / width);
+                wavePath.lineTo(x0 + static_cast<float>(x), midY - peaks[column * 2 + 1] * halfHeight);
+            }
+
+            for (int x = width - 1; x >= 0; --x)
+            {
+                const auto column = juce::jmin(columns - 1, x * columns / width);
+                const auto top = midY - peaks[column * 2 + 1] * halfHeight;
+                const auto bottom = midY - peaks[column * 2] * halfHeight;
+                wavePath.lineTo(x0 + static_cast<float>(x), juce::jmax(top + 1.0f, bottom));
+            }
+
+            wavePath.closeSubPath();
+        }
+
         void startBackgroundLoad()
         {
             cancelLoad();
             loadCancelled = std::make_shared<std::atomic<bool>>(false);
             auto cancelled = loadCancelled;
             const auto file = requestedFile;
+            const auto modTime = file.getLastModificationTime().toMilliseconds();
             auto safeThis = juce::Component::SafePointer<WaveformView>(this);
 
-            juce::Thread::launch([safeThis, file, cancelled]
+            juce::Thread::launch([safeThis, file, cancelled, modTime]
             {
                 auto computed = computeWaveformPeaks(file, cancelled);
                 if (cancelled->load())
                     return;
 
-                juce::MessageManager::callAsync([safeThis, file, cancelled, computed = std::move(computed)]() mutable
+                juce::MessageManager::callAsync([safeThis, file, cancelled, modTime, computed = std::move(computed)]() mutable
                 {
                     if (safeThis == nullptr || cancelled->load() || file != safeThis->requestedFile)
                         return;
 
-                    safeThis->peaks = std::move(computed.peaks);
-                    safeThis->lengthSeconds = computed.lengthSeconds;
-                    safeThis->hasPeaks = ! safeThis->peaks.empty();
-                    safeThis->cached = { file, safeThis->peaks, safeThis->lengthSeconds };
+                    safeThis->adoptPeaks(computed.peaks, computed.lengthSeconds);
+                    safeThis->peakCache[file.getFullPathName()] = { modTime, safeThis->peaks,
+                                                                    safeThis->lengthSeconds };
                     safeThis->applyPendingTrim();
                     safeThis->loadCancelled.reset();
                     safeThis->repaint();
@@ -327,15 +392,9 @@ namespace
             return juce::jlimit(0.0, lengthSeconds, static_cast<double>(proportion) * lengthSeconds);
         }
 
-        struct Cache
-        {
-            juce::File file;
-            std::vector<float> peaks;
-            double lengthSeconds = 0.0;
-        };
-
         std::vector<float> peaks; // min/max pairs
-        Cache cached;
+        juce::Path wavePath;
+        std::map<juce::String, Cache> peakCache;
         juce::File requestedFile;
         std::shared_ptr<std::atomic<bool>> loadCancelled;
         double lengthSeconds = 0.0;
@@ -345,6 +404,7 @@ namespace
         double pendingTrimEnd = 0.0;
         int dragging = 0;
         bool hasPeaks = false;
+        bool trimDirty = false;
     };
 }
 
@@ -1023,14 +1083,15 @@ public:
     TrimTab()
     {
         addAndMakeVisible(waveform);
-        waveform.onTrimChanged = [this](double start, double end)
+        waveform.onTrimChanged = [this](double start, double end, bool finished)
         {
             if (currentCue != nullptr)
             {
                 currentCue->trimStart = start;
                 currentCue->trimEnd = end;
                 refreshEditors();
-                notifyEdited();
+                if (finished)
+                    notifyEdited();
             }
         };
 
