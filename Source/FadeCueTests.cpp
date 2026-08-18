@@ -15,6 +15,31 @@ public:
         cue.fadeActions.add({ 1, 0.25, 1.5 });
         cue.fadeActions.add({ 2, 2.0, 0.75 });
         expectWithinAbsoluteError(cue.getEffectiveDuration(), 2.75, 0.0001);
+
+        beginTest("Builds a crossfade action pair");
+        const auto pair = Cue::makeCrossfadeActions(3, 7, 2.5, Cue::FadeCurve::sCurve);
+        expectEquals(pair.size(), 2);
+        expectEquals(pair[0].targetCueId, 3);
+        expect(pair[0].fadeGain);
+        expectWithinAbsoluteError(pair[0].targetGainDb, -60.0, 0.0001);
+        expect(pair[0].stopAtEnd);
+        expect(! pair[0].startIfStopped);
+        expectEquals(pair[1].targetCueId, 7);
+        expectWithinAbsoluteError(pair[1].targetGainDb, 0.0, 0.0001);
+        expect(pair[1].startIfStopped);
+        expectWithinAbsoluteError(pair[1].startGainDb, -60.0, 0.0001);
+        expect(! pair[1].stopAtEnd);
+        for (const auto& action : pair)
+        {
+            expectWithinAbsoluteError(action.durationSeconds, 2.5, 0.0001);
+            expectEquals(static_cast<int>(action.curve), static_cast<int>(Cue::FadeCurve::sCurve));
+        }
+
+        beginTest("Builds fade-in only when nothing is playing");
+        const auto fadeInOnly = Cue::makeCrossfadeActions(0, 7);
+        expectEquals(fadeInOnly.size(), 1);
+        expectEquals(fadeInOnly[0].targetCueId, 7);
+        expect(fadeInOnly[0].startIfStopped);
     }
 };
 

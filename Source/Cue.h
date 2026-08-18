@@ -58,6 +58,40 @@ struct Cue
     bool isAudio() const { return kind == Kind::audio; }
     bool isFade() const { return kind == Kind::fade; }
 
+    // Canonical song-to-song transition: fade the old song out and stop it,
+    // fade the new song in from silence (starting it if needed).
+    static juce::Array<FadeAction> makeCrossfadeActions(int fromCueId, int toCueId,
+                                                        double durationSeconds = 3.0,
+                                                        FadeCurve curve = FadeCurve::sCurve)
+    {
+        juce::Array<FadeAction> actions;
+
+        if (fromCueId > 0)
+        {
+            FadeAction fadeOut;
+            fadeOut.targetCueId = fromCueId;
+            fadeOut.durationSeconds = durationSeconds;
+            fadeOut.targetGainDb = -60.0;
+            fadeOut.stopAtEnd = true;
+            fadeOut.curve = curve;
+            actions.add(fadeOut);
+        }
+
+        if (toCueId > 0)
+        {
+            FadeAction fadeIn;
+            fadeIn.targetCueId = toCueId;
+            fadeIn.durationSeconds = durationSeconds;
+            fadeIn.targetGainDb = 0.0;
+            fadeIn.startIfStopped = true;
+            fadeIn.startGainDb = -60.0;
+            fadeIn.curve = curve;
+            actions.add(fadeIn);
+        }
+
+        return actions;
+    }
+
     double getEffectiveDuration() const
     {
         if (isFade())

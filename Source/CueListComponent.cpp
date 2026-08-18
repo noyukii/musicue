@@ -387,6 +387,32 @@ void CueListComponent::addFadeCue()
     cues.insert(insertAt, cue);
     rebuildVisibleRows(); normaliseStandby(); table.selectRow(findVisibleRow(cue.id)); notifyContentChanged();
 }
+
+int CueListComponent::firstPlayingAudioCueId(int excludeId) const
+{
+    for (const auto& cue : cues)
+        if (cue.isAudio() && cue.id != excludeId && cue.playCount > 0)
+            return cue.id;
+    return 0;
+}
+
+void CueListComponent::addCrossfadeCue(int toCueId)
+{
+    const auto toIndex = findCueIndex(toCueId);
+    if (toIndex < 0 || ! cues[toIndex].isAudio())
+        return;
+
+    rememberUndo();
+    Cue cue;
+    cue.id = nextCueId++;
+    cue.kind = Cue::Kind::fade;
+    cue.number = juce::String(cues.size() + 1);
+    cue.name = "Crossfade to " + cues[toIndex].name;
+    cue.parentId = cues[toIndex].parentId;
+    cue.fadeActions = Cue::makeCrossfadeActions(firstPlayingAudioCueId(toCueId), toCueId);
+    cues.insert(insertionIndexFor(cue.parentId, siblingIndexOf(cues[toIndex]) + 1), cue);
+    rebuildVisibleRows(); normaliseStandby(); table.selectRow(findVisibleRow(cue.id)); notifyContentChanged();
+}
 void CueListComponent::setCues(juce::Array<Cue> source, int standbyId)
 {
     cues = std::move(source); nextCueId = 1;
@@ -1432,13 +1458,19 @@ void CueListComponent::showCueMenu(juce::Point<int> p)
 
     auto anyGroup = false;
     auto singleGroup = roots.size() == 1;
+    auto singleAudioId = 0;
     for (const auto id : roots)
         if (const auto index = findCueIndex(id); index >= 0 && cues[index].isGroup())
             anyGroup = true;
     singleGroup = singleGroup && anyGroup;
+    if (roots.size() == 1)
+        if (const auto index = findCueIndex(roots[0]); index >= 0 && cues[index].isAudio())
+            singleAudioId = roots[0];
 
     juce::PopupMenu menu;
     menu.addItem("Preview", [this] { previewSelected(); });
+    menu.addItem("Crossfade to This Song", editingEnabled && singleAudioId != 0, false,
+                 [this, singleAudioId] { addCrossfadeCue(singleAudioId); });
     menu.addSeparator();
     menu.addItem("Group Selected Cues", editingEnabled && ! roots.isEmpty(), false, [this] { groupSelectedCue(); });
     menu.addItem("Ungroup", editingEnabled && anyGroup, false, [this] { ungroupSelectedCue(); });

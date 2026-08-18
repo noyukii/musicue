@@ -18,6 +18,8 @@ public:
     void addCueFromFile(const juce::File& file);
     void addGroupCue();
     void addFadeCue();
+    void addCrossfadeCue(int toCueId);
+    int firstPlayingAudioCueId(int excludeId) const;
     void setCues(juce::Array<Cue> newCues, int standbyCueId);
     const juce::Array<Cue>& getCues() const { return cues; }
 

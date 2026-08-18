@@ -18,6 +18,7 @@ public:
 
     std::function<void()> onCueEdited;
     std::function<juce::String()> outputInfoProvider;
+    std::function<int(int excludeCueId)> playingCueProvider;
 
 private:
     class BasicsTab;
