@@ -100,6 +100,26 @@
             gap: 16px;
         }
 
+        .release-status {
+            margin: 0;
+            color: var(--muted);
+            font-size: .92rem;
+            line-height: 1.5;
+        }
+
+        .release-status a { color: inherit; }
+
+        .retry {
+            margin-top: 13px;
+            padding: 0;
+            border: 0;
+            border-bottom: 1px solid currentColor;
+            background: transparent;
+            color: var(--text);
+            cursor: pointer;
+            font: inherit;
+        }
+
         .release {
             padding: 0 20px;
             background: var(--field);
@@ -116,6 +136,7 @@
         }
 
         .release-version {
+            margin: 0;
             font-size: 1.1rem;
             font-weight: 750;
         }
@@ -125,6 +146,8 @@
             font-size: .82rem;
             white-space: nowrap;
         }
+
+        .release > .release-status { padding-bottom: 20px; }
 
         .files {
             margin: 0;
@@ -148,7 +171,7 @@
 
         .file a:hover { color: var(--ready); }
 
-        .file-name { font-size: .96rem; font-weight: 650; }
+        .file-name { min-width: 0; overflow-wrap: anywhere; font-size: .96rem; font-weight: 650; }
 
         .file-meta {
             flex: 0 0 auto;
@@ -165,6 +188,7 @@
 
         .footer a { color: inherit; }
 
+        .retry:focus-visible,
         a:focus-visible {
             outline: 3px solid var(--ready);
             outline-offset: 3px;
@@ -201,30 +225,123 @@
 
         <section class="releases" aria-labelledby="page-title">
             <h1 id="page-title">Releases</h1>
-            <div class="release-list">
-                <article class="release" aria-labelledby="release-v010">
-                    <div class="release-summary">
-                        <span class="release-version" id="release-v010">v0.1.0</span>
-                        <time class="release-date" datetime="2026-08-18">18 Aug 2026</time>
-                    </div>
-                    <ul class="files" aria-label="v0.1.0 downloads">
-                        <li class="file">
-                            <a href="https://github.com/noyukii/musicue/releases/download/v0.1.0/MusiCue-macOS.zip">
-                                <span class="file-name">MusiCue-macOS.zip</span>
-                                <span class="file-meta">3.8 MB</span>
-                            </a>
-                        </li>
-                        <li class="file">
-                            <a href="https://github.com/noyukii/musicue/releases/download/v0.1.0/MusiCue-Windows.zip">
-                                <span class="file-name">MusiCue-Windows.zip</span>
-                                <span class="file-meta">3.7 MB</span>
-                            </a>
-                        </li>
-                    </ul>
-                </article>
-            </div>
+            <div class="release-list" id="release-list" aria-busy="true" aria-live="polite"></div>
+            <p class="release-status" id="release-status">Loading releases…</p>
             <p class="footer"><a href="https://github.com/noyukii/musicue/releases">All releases on GitHub</a></p>
         </section>
     </main>
+    <script>
+        const releaseList = document.querySelector('#release-list');
+        const releaseStatus = document.querySelector('#release-status');
+        const releaseApiUrl = 'https://api.github.com/repos/noyukii/musicue/releases';
+
+        function formatDate(value) {
+            return new Intl.DateTimeFormat(undefined, {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
+            }).format(new Date(value));
+        }
+
+        function formatSize(bytes) {
+            if (!Number.isFinite(bytes) || bytes < 1024) return bytes + ' B';
+            const units = ['KB', 'MB', 'GB'];
+            const unit = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length);
+            return (bytes / (1024 ** unit)).toFixed(unit === 1 ? 0 : 1) + ' ' + units[unit - 1];
+        }
+
+        function releaseBox(release) {
+            const article = document.createElement('article');
+            article.className = 'release';
+
+            const title = document.createElement('h2');
+            title.className = 'release-version';
+            title.textContent = release.name || release.tag_name;
+            article.setAttribute('aria-labelledby', 'release-' + release.id);
+            title.id = 'release-' + release.id;
+
+            const date = document.createElement('time');
+            const publishedAt = release.published_at || release.created_at;
+            date.className = 'release-date';
+            date.dateTime = publishedAt;
+            date.textContent = formatDate(publishedAt);
+
+            const summary = document.createElement('div');
+            summary.className = 'release-summary';
+            summary.append(title, date);
+            article.append(summary);
+
+            const assets = Array.isArray(release.assets) ? release.assets : [];
+            if (assets.length === 0) {
+                const empty = document.createElement('p');
+                empty.className = 'release-status';
+                empty.textContent = 'No downloadable files for this release.';
+                article.append(empty);
+                return article;
+            }
+
+            const files = document.createElement('ul');
+            files.className = 'files';
+            files.setAttribute('aria-label', (release.name || release.tag_name) + ' downloads');
+
+            for (const asset of assets) {
+                const item = document.createElement('li');
+                item.className = 'file';
+
+                const link = document.createElement('a');
+                link.href = asset.browser_download_url;
+
+                const name = document.createElement('span');
+                name.className = 'file-name';
+                name.textContent = asset.name;
+
+                const size = document.createElement('span');
+                size.className = 'file-meta';
+                size.textContent = formatSize(asset.size);
+
+                link.append(name, size);
+                item.append(link);
+                files.append(item);
+            }
+
+            article.append(files);
+            return article;
+        }
+
+        async function loadReleases() {
+            releaseList.setAttribute('aria-busy', 'true');
+            releaseStatus.textContent = 'Loading releases…';
+
+            try {
+                const response = await fetch(releaseApiUrl, {
+                    headers: { Accept: 'application/vnd.github+json' }
+                });
+                if (!response.ok) throw new Error('GitHub releases request failed');
+
+                const releases = await response.json();
+                releaseList.replaceChildren();
+
+                if (!Array.isArray(releases) || releases.length === 0) {
+                    releaseStatus.textContent = 'No releases published yet.';
+                    return;
+                }
+
+                releaseList.append(...releases.map(releaseBox));
+                releaseStatus.textContent = '';
+            } catch {
+                releaseStatus.replaceChildren('Could not load releases. ');
+                const retry = document.createElement('button');
+                retry.className = 'retry';
+                retry.type = 'button';
+                retry.textContent = 'Try again';
+                retry.addEventListener('click', loadReleases, { once: true });
+                releaseStatus.append(retry);
+            } finally {
+                releaseList.setAttribute('aria-busy', 'false');
+            }
+        }
+
+        loadReleases();
+    </script>
 </body>
 </html>
