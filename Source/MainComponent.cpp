@@ -104,7 +104,8 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
     cueList.onSelectionChanged = [this]
     {
         inspector.setCue(cueList.getSelectedCue());
-        juce::MessageManager::callAsync([self = juce::Component::SafePointer<MainComponent>(this)]
+        auto self = juce::Component::SafePointer<MainComponent>(this);
+        juce::MessageManager::callAsync([self]
         {
             if (self != nullptr)
                 self->grabKeyboardFocus();
