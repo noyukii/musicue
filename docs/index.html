@@ -3,18 +3,17 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Download MusiCue releases for macOS and Windows.">
-    <title>MusiCue — Downloads</title>
+    <meta name="description" content="Download MusiCue for macOS and Windows.">
+    <title>MusiCue</title>
+    <link rel="icon" href="assets/appicon_musicue.png">
     <style>
         :root {
             color-scheme: dark;
             --canvas: #242424;
-            --panel: #2b2b2b;
             --field: #1e1e1e;
             --line: #3d3d3d;
             --text: #d9d9d9;
-            --muted: #a5a5a5;
-            --faint: #777777;
+            --muted: #8e8e8e;
             --ready: #43d158;
             --notice: #d1a343;
         }
@@ -25,93 +24,96 @@
             min-width: 320px;
             min-height: 100vh;
             margin: 0;
+            display: grid;
+            place-items: center;
             background: var(--canvas);
             color: var(--text);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
         }
 
         main {
-            width: min(100% - 40px, 960px);
-            min-height: 100vh;
-            margin: 0 auto;
-            display: grid;
-            grid-template-columns: minmax(230px, .82fr) minmax(390px, 1.18fr);
-            border-inline: 1px solid var(--line);
-        }
-
-        .identity {
-            min-height: 700px;
-            padding: 52px 38px 38px;
-            display: flex;
-            flex-direction: column;
-            background: var(--panel);
-            border-right: 1px solid var(--line);
+            width: min(100% - 40px, 400px);
+            padding: 48px 0;
+            text-align: center;
         }
 
         .app-icon {
-            width: 88px;
-            height: 88px;
+            width: 120px;
+            height: 120px;
+            margin: 0 auto;
             display: block;
-            border-radius: 20px;
-        }
-
-        .brand {
-            margin-top: 82px;
-        }
-
-        .wordmark, .release-kicker, .file-meta, .footer {
-            letter-spacing: .08em;
-            text-transform: uppercase;
-        }
-
-        .wordmark {
-            margin: 0;
-            font-size: 1.3rem;
-            font-weight: 750;
-        }
-
-        .tagline {
-            max-width: 14rem;
-            margin: 9px 0 0;
-            color: var(--muted);
-            font-size: .96rem;
-            line-height: 1.55;
-        }
-
-        .releases {
-            padding: 52px;
-        }
-
-        .release-kicker {
-            margin: 0 0 12px;
-            color: var(--muted);
-            font-size: .7rem;
-            font-weight: 750;
+            border-radius: 28px;
         }
 
         h1 {
-            margin: 0 0 34px;
-            font-size: clamp(2rem, 5vw, 3rem);
-            letter-spacing: -.03em;
-            line-height: 1;
+            margin: 22px 0 0;
+            font-size: 1.55rem;
+            font-weight: 700;
+            letter-spacing: -.02em;
         }
 
-        .release-list {
-            display: grid;
+        .release-meta {
+            margin: 6px 0 0;
+            color: var(--muted);
+            font-size: .92rem;
+        }
+
+        .files {
+            margin: 28px 0 0;
+            padding: 0;
+            list-style: none;
+        }
+
+        .file + .file { margin-top: 10px; }
+
+        .file a {
+            min-height: 56px;
+            padding: 0 18px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             gap: 16px;
+            background: var(--field);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            color: var(--text);
+            text-decoration: none;
+            text-align: left;
+            transition: border-color 120ms ease, color 120ms ease;
         }
 
-        .release-status {
-            margin: 0;
+        .file a:hover {
+            border-color: var(--ready);
+            color: var(--ready);
+        }
+
+        .file-name {
+            min-width: 0;
+            overflow-wrap: anywhere;
+            font-size: .95rem;
+            font-weight: 650;
+        }
+
+        .file-meta {
+            flex: 0 0 auto;
+            color: var(--muted);
+            font-size: .72rem;
+            font-weight: 700;
+            letter-spacing: .06em;
+            text-transform: uppercase;
+        }
+
+        .status {
+            margin: 28px 0 0;
             color: var(--muted);
             font-size: .92rem;
             line-height: 1.5;
         }
 
-        .release-status a { color: inherit; }
+        .status a { color: inherit; }
 
         .retry {
-            margin-top: 13px;
+            margin-top: 10px;
             padding: 0;
             border: 0;
             border-bottom: 1px solid currentColor;
@@ -121,127 +123,55 @@
             font: inherit;
         }
 
-        .release {
-            padding: 0 20px;
-            background: var(--field);
-            border: 1px solid var(--line);
-            border-radius: 14px;
-        }
-
-        .release-summary {
-            padding: 22px 0 19px;
-            display: flex;
-            align-items: baseline;
-            justify-content: space-between;
-            gap: 16px;
-        }
-
-        .release-version {
-            margin: 0;
-            font-size: 1.1rem;
-            font-weight: 750;
-        }
-
-        .release-date {
-            color: var(--muted);
-            font-size: .82rem;
-            white-space: nowrap;
-        }
-
-        .release > .release-status { padding-bottom: 20px; }
-
-        .files {
-            margin: 0;
-            padding: 0;
-            list-style: none;
-        }
-
-        .file + .file { border-top: 1px solid var(--line); }
-
-        .file a {
-            min-height: 64px;
-            padding: 13px 0;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 18px;
-            color: var(--text);
-            text-decoration: none;
-            transition: color 120ms ease;
-        }
-
-        .file a:hover { color: var(--ready); }
-
-        .file-name { min-width: 0; overflow-wrap: anywhere; font-size: .96rem; font-weight: 650; }
-
-        .file-meta {
-            flex: 0 0 auto;
-            color: var(--muted);
-            font-size: .65rem;
-            font-weight: 750;
-        }
-
         .notice {
-            margin: 30px 0 0;
-            padding: 17px 20px;
+            margin: 28px 0 0;
+            padding: 14px 16px;
             background: var(--field);
             border: 1px solid var(--line);
             border-left: 2px solid var(--notice);
-            border-radius: 14px;
+            border-radius: 12px;
+            text-align: left;
         }
 
         .notice summary {
             color: var(--text);
             cursor: pointer;
-            font-size: .92rem;
+            font-size: .88rem;
             font-weight: 650;
         }
 
         .notice summary::marker { color: var(--notice); }
 
         .notice p {
-            margin: 13px 0 0;
+            margin: 12px 0 0;
             color: var(--muted);
-            font-size: .88rem;
-            line-height: 1.6;
+            font-size: .86rem;
+            line-height: 1.55;
         }
 
         .notice a { color: inherit; }
 
         .notice code {
-            color: var(--faint);
+            color: var(--muted);
             font-size: .78rem;
             overflow-wrap: anywhere;
         }
 
-        .notice + .notice { margin-top: 14px; }
+        .notice + .notice { margin-top: 10px; }
 
         .footer {
-            margin: 38px 0 0;
+            margin: 32px 0 0;
             color: var(--muted);
-            font-size: .67rem;
+            font-size: .78rem;
         }
 
         .footer a { color: inherit; }
 
         .retry:focus-visible,
-        a:focus-visible {
+        a:focus-visible,
+        summary:focus-visible {
             outline: 3px solid var(--ready);
             outline-offset: 3px;
-        }
-
-        @media (max-width: 680px) {
-            main {
-                width: 100%;
-                display: block;
-                border: 0;
-            }
-
-            .identity { min-height: 0; padding: 34px 26px; border-right: 0; border-bottom: 1px solid var(--line); }
-            .app-icon { width: 64px; height: 64px; border-radius: 15px; }
-            .brand { margin-top: 34px; }
-            .releases { padding: 40px 26px; }
-            h1 { margin-bottom: 28px; }
         }
 
         @media (prefers-reduced-motion: reduce) {
@@ -251,41 +181,34 @@
 </head>
 <body>
     <main>
-        <aside class="identity" aria-label="MusiCue">
-            <img class="app-icon" src="assets/appicon_musicue.png" alt="MusiCue app icon">
-            <div class="brand">
-                <p class="wordmark">MusiCue</p>
-                <p class="tagline">Audio show control for your cues and workspaces.</p>
-            </div>
-        </aside>
+        <img class="app-icon" src="assets/appicon_musicue.png" alt="MusiCue">
+        <h1>MusiCue</h1>
+        <p class="release-meta" id="release-meta"></p>
+        <ul class="files" id="file-list" aria-busy="true" aria-live="polite"></ul>
+        <p class="status" id="status">Loading latest release…</p>
 
-        <section class="releases" aria-labelledby="page-title">
-            <h1 id="page-title">Releases</h1>
-            <div class="release-list" id="release-list" aria-busy="true" aria-live="polite"></div>
-            <p class="release-status" id="release-status">Loading releases…</p>
+        <details class="notice">
+            <summary>macOS may say MusiCue is damaged</summary>
+            <p>MusiCue is not notarized with Apple yet. Gatekeeper treats unsigned apps downloaded from the internet as damaged and refuses to open them.</p>
+            <p>After unzipping, run the included <code>If macOS says MusiCue is damaged, open this.command</code> (right-click → Open if macOS blocks the helper too), or clear the quarantine in Terminal:</p>
+            <p><code>xattr -cr /Applications/MusiCue.app</code></p>
+            <p>Then open MusiCue normally. You can also allow it under System Settings → Privacy &amp; Security.</p>
+        </details>
 
-            <details class="notice">
-                <summary>macOS may say MusiCue is damaged</summary>
-                <p>MusiCue is not notarized with Apple yet. Gatekeeper treats unsigned apps downloaded from the internet as damaged and refuses to open them — the same false positive as the Windows SmartScreen warning below.</p>
-                <p>After unzipping, run the included <code>If macOS says MusiCue is damaged, open this.command</code> (right-click → Open if macOS blocks the helper too), or clear the quarantine in Terminal:</p>
-                <p><code>xattr -cr /Applications/MusiCue.app</code></p>
-                <p>Then open MusiCue normally. You can also allow it under System Settings → Privacy &amp; Security.</p>
-            </details>
+        <details class="notice">
+            <summary>Windows may flag this download as unsafe</summary>
+            <p>MusiCue is not code-signed yet. Microsoft Defender may block MusiCue.exe or quarantine it as a trojan. This is a false positive.</p>
+            <p>Each release is built in the open from source by <a href="https://github.com/noyukii/musicue/actions">GitHub Actions</a>.</p>
+            <p>If it was already quarantined, open Windows Security → Virus &amp; threat protection → Protection history, find the MusiCue entry and choose Restore. If SmartScreen blocks it instead, choose More info → Run anyway.</p>
+        </details>
 
-            <details class="notice">
-                <summary>Windows may flag this download as unsafe</summary>
-                <p>MusiCue is not code-signed yet. Microsoft Defender’s machine-learning heuristic flags unsigned programs that few people have downloaded so far, so it may block MusiCue.exe or quarantine it as a trojan. This is a false positive.</p>
-                <p>On <a href="https://www.virustotal.com/gui/file/d3f3795eef5e7cf36f638eb00aa8eaac6b13526fef5edd2e602a94577cbf8534">VirusTotal</a>, 1 of 70 engines flags the v0.1.1 build — Defender’s own classifier. Every other engine reports it clean. Each release is built in the open from source by <a href="https://github.com/noyukii/musicue/actions">GitHub Actions</a>, so you can check the binary yourself: <code>SHA-256 d3f3795eef5e7cf36f638eb00aa8eaac6b13526fef5edd2e602a94577cbf8534</code></p>
-                <p>If it was already quarantined, open Windows Security → Virus &amp; threat protection → Protection history, find the MusiCue entry and choose Restore. If SmartScreen blocks it instead, choose More info → Run anyway.</p>
-            </details>
-
-            <p class="footer"><a href="https://github.com/noyukii/musicue/releases">All releases on GitHub</a></p>
-        </section>
+        <p class="footer"><a href="https://github.com/noyukii/musicue/releases">All releases on GitHub</a></p>
     </main>
     <script>
-        const releaseList = document.querySelector('#release-list');
-        const releaseStatus = document.querySelector('#release-status');
-        const releaseApiUrl = 'https://api.github.com/repos/noyukii/musicue/releases';
+        const fileList = document.querySelector('#file-list');
+        const releaseMeta = document.querySelector('#release-meta');
+        const status = document.querySelector('#status');
+        const releaseApiUrl = 'https://api.github.com/repos/noyukii/musicue/releases/latest';
 
         function formatDate(value) {
             return new Intl.DateTimeFormat(undefined, {
@@ -302,39 +225,21 @@
             return (bytes / (1024 ** unit)).toFixed(unit === 1 ? 0 : 1) + ' ' + units[unit - 1];
         }
 
-        function releaseBox(release) {
-            const article = document.createElement('article');
-            article.className = 'release';
-
-            const title = document.createElement('h2');
-            title.className = 'release-version';
-            title.textContent = release.name || release.tag_name;
-            article.setAttribute('aria-labelledby', 'release-' + release.id);
-            title.id = 'release-' + release.id;
-
-            const date = document.createElement('time');
-            const publishedAt = release.published_at || release.created_at;
-            date.className = 'release-date';
-            date.dateTime = publishedAt;
-            date.textContent = formatDate(publishedAt);
-
-            const summary = document.createElement('div');
-            summary.className = 'release-summary';
-            summary.append(title, date);
-            article.append(summary);
-
+        function showFiles(release) {
             const assets = Array.isArray(release.assets) ? release.assets : [];
-            if (assets.length === 0) {
-                const empty = document.createElement('p');
-                empty.className = 'release-status';
-                empty.textContent = 'No downloadable files for this release.';
-                article.append(empty);
-                return article;
-            }
+            const publishedAt = release.published_at || release.created_at;
+            const version = release.name || release.tag_name;
 
-            const files = document.createElement('ul');
-            files.className = 'files';
-            files.setAttribute('aria-label', (release.name || release.tag_name) + ' downloads');
+            releaseMeta.textContent = publishedAt
+                ? version + ' · ' + formatDate(publishedAt)
+                : version;
+
+            fileList.replaceChildren();
+
+            if (assets.length === 0) {
+                status.textContent = 'No downloadable files for this release.';
+                return;
+            }
 
             for (const asset of assets) {
                 const item = document.createElement('li');
@@ -353,47 +258,43 @@
 
                 link.append(name, size);
                 item.append(link);
-                files.append(item);
+                fileList.append(item);
             }
 
-            article.append(files);
-            return article;
+            status.textContent = '';
         }
 
-        async function loadReleases() {
-            releaseList.setAttribute('aria-busy', 'true');
-            releaseStatus.textContent = 'Loading releases…';
+        async function loadLatestRelease() {
+            fileList.setAttribute('aria-busy', 'true');
+            fileList.replaceChildren();
+            releaseMeta.textContent = '';
+            status.textContent = 'Loading latest release…';
 
             try {
                 const response = await fetch(releaseApiUrl, {
                     headers: { Accept: 'application/vnd.github+json' }
                 });
-                if (!response.ok) throw new Error('GitHub releases request failed');
-
-                const releases = await response.json();
-                releaseList.replaceChildren();
-
-                if (!Array.isArray(releases) || releases.length === 0) {
-                    releaseStatus.textContent = 'No releases published yet.';
+                if (response.status === 404) {
+                    status.textContent = 'No releases published yet.';
                     return;
                 }
+                if (!response.ok) throw new Error('GitHub releases request failed');
 
-                releaseList.append(...releases.map(releaseBox));
-                releaseStatus.textContent = '';
+                showFiles(await response.json());
             } catch {
-                releaseStatus.replaceChildren('Could not load releases. ');
+                status.replaceChildren('Could not load the latest release. ');
                 const retry = document.createElement('button');
                 retry.className = 'retry';
                 retry.type = 'button';
                 retry.textContent = 'Try again';
-                retry.addEventListener('click', loadReleases, { once: true });
-                releaseStatus.append(retry);
+                retry.addEventListener('click', loadLatestRelease, { once: true });
+                status.append(retry);
             } finally {
-                releaseList.setAttribute('aria-busy', 'false');
+                fileList.setAttribute('aria-busy', 'false');
             }
         }
 
-        loadReleases();
+        loadLatestRelease();
     </script>
 </body>
 </html>
