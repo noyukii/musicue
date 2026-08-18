@@ -1086,6 +1086,20 @@ void CueListComponent::handleAutoContinue(int id)
     if (next != 0) juce::Timer::callAfterDelay(delay, [this, next] { runCue(findCueIndex(next), false); });
 }
 bool CueListComponent::triggerHotkey(const juce::KeyPress& key) { for (int i = 0; i < cues.size(); ++i) if (cues[i].hotkey == key.getTextDescription()) { runCue(i, false); return true; } return false; }
+void CueListComponent::selectAdjacentCue(int delta)
+{
+    if (visibleRows.isEmpty())
+        return;
+
+    const auto current = table.getSelectedRow();
+    const auto next = current < 0
+        ? (delta > 0 ? 0 : visibleRows.size() - 1)
+        : juce::jlimit(0, visibleRows.size() - 1, current + delta);
+
+    if (next != current)
+        table.selectRow(next);
+}
+
 Cue* CueListComponent::getSelectedCue() { const auto row = table.getSelectedRow(); return juce::isPositiveAndBelow(row, visibleRows.size()) ? &cues.getReference(visibleRows[row].cueIndex) : nullptr; }
 const Cue* CueListComponent::getStandbyCue() const { const auto i = findCueIndex(standbyCueId); return i >= 0 ? &cues.getReference(i) : nullptr; }
 bool CueListComponent::hasStandby() const { return getStandbyCue() != nullptr; }
@@ -1352,7 +1366,9 @@ void CueListComponent::selectedRowsChanged(int)
     if (standbyLinked && table.getNumSelectedRows() == 1)
         if (auto* c = getSelectedCue())
             standbyCueId = c->id;
-    table.repaint(); if (onSelectionChanged) onSelectionChanged(); notifyContentChanged();
+    table.repaint();
+    if (onSelectionChanged)
+        onSelectionChanged();
 }
 
 //==============================================================================

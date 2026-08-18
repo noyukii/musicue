@@ -105,7 +105,9 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
     cueList.onStopCue = [this](int cueId) { engine.stopCue(cueId); };
     cueList.onSelectionChanged = [this]
     {
-        inspector.setCue(cueList.getSelectedCue());
+        if (inspectorVisible)
+            inspector.setCue(cueList.getSelectedCue());
+        updateStatusDisplays();
         auto self = juce::Component::SafePointer<MainComponent>(this);
         juce::MessageManager::callAsync([self]
         {
@@ -148,6 +150,7 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
         inspectorVisible = ! inspectorVisible;
         inspector.setVisible(inspectorVisible);
         inspectorResizer->setVisible(inspectorVisible);
+        inspector.setCue(inspectorVisible ? cueList.getSelectedCue() : nullptr);
         resized();
     };
 
@@ -160,6 +163,7 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
     setSize(1150, 760);
     showLauncher();
     checkForUpdates();
+    startTimer(60 * 1000);
 }
 
 MainComponent::~MainComponent()
@@ -333,6 +337,14 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
 
         if (key == juce::KeyPress::upKey) { cueList.moveSelectedCue(-1); return true; }
         if (key == juce::KeyPress::downKey) { cueList.moveSelectedCue(1); return true; }
+    }
+    else if (key == juce::KeyPress::upKey || key == juce::KeyPress::downKey)
+    {
+        if (dynamic_cast<juce::TextEditor*>(juce::Component::getCurrentlyFocusedComponent()) != nullptr)
+            return false;
+
+        cueList.selectAdjacentCue(key == juce::KeyPress::upKey ? -1 : 1);
+        return true;
     }
     else if (key == juce::KeyPress::backspaceKey || key == juce::KeyPress::deleteKey)
     {
@@ -583,6 +595,7 @@ void MainComponent::setShowMode(bool enabled)
     inspectorVisible = ! showMode;
     inspector.setVisible(! showMode);
     inspectorResizer->setVisible(! showMode);
+    inspector.setCue(inspectorVisible ? cueList.getSelectedCue() : nullptr);
     toolbar.setEditingEnabled(! showMode);
     cueList.setEditingEnabled(! showMode);
     inspectorToggleButton.button->setVisible(! showMode);
@@ -621,6 +634,11 @@ void MainComponent::checkForUpdates()
 
             safeThis->showUpdatePopup(result.latestVersion);
         });
+}
+
+void MainComponent::timerCallback()
+{
+    checkForUpdates();
 }
 
 void MainComponent::showUpdatePopup(const juce::String& version)

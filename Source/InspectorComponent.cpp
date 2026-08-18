@@ -1,6 +1,8 @@
 #include "InspectorComponent.h"
 #include "FadeEditorComponent.h"
 #include <juce_audio_formats/juce_audio_formats.h>
+#include <atomic>
+#include <memory>
 
 namespace
 {
@@ -65,56 +67,106 @@ namespace
         juce::String message;
     };
 
+    struct WaveformPeaks
+    {
+        std::vector<float> peaks;
+        double lengthSeconds = 0.0;
+    };
+
+    WaveformPeaks computeWaveformPeaks(const juce::File& file, const std::shared_ptr<std::atomic<bool>>& cancelled)
+    {
+        WaveformPeaks result;
+        juce::AudioFormatManager formatManager;
+        formatManager.registerBasicFormats();
+
+        auto reader = std::unique_ptr<juce::AudioFormatReader>(formatManager.createReaderFor(file));
+        if (reader == nullptr)
+            return result;
+
+        result.lengthSeconds = static_cast<double>(reader->lengthInSamples) / reader->sampleRate;
+
+        const int columns = 960;
+        result.peaks.assign(static_cast<size_t>(columns) * 2, 0.0f);
+
+        const auto total = reader->lengthInSamples;
+        juce::AudioBuffer<float> chunk(static_cast<int>(juce::jmin(2u, reader->numChannels)), 16384);
+
+        for (juce::int64 start = 0; start < total; start += 16384)
+        {
+            if (cancelled != nullptr && cancelled->load())
+                return {};
+
+            const auto toRead = static_cast<int>(juce::jmin<juce::int64>(16384, total - start));
+            reader->read(&chunk, 0, toRead, start, true, true);
+
+            for (int i = 0; i < toRead; ++i)
+            {
+                auto sample = chunk.getSample(0, i);
+
+                if (chunk.getNumChannels() > 1)
+                    sample = 0.5f * (sample + chunk.getSample(1, i));
+
+                const auto column = static_cast<size_t>((start + i) * columns / juce::jmax<juce::int64>(1, total));
+                result.peaks[column * 2] = juce::jmin(result.peaks[column * 2], sample);
+                result.peaks[column * 2 + 1] = juce::jmax(result.peaks[column * 2 + 1], sample);
+            }
+        }
+
+        return result;
+    }
+
     class WaveformView : public juce::Component
     {
     public:
         std::function<void(double, double)> onTrimChanged;
 
+        WaveformView() = default;
+
+        ~WaveformView() override
+        {
+            cancelLoad();
+        }
+
         void setFile(const juce::File& file, double newTrimStart, double newTrimEnd)
         {
-            trimStart = newTrimStart;
-            trimEnd = newTrimEnd;
-            lengthSeconds = 0.0;
-            peaks.clear();
+            pendingTrimStart = newTrimStart;
+            pendingTrimEnd = newTrimEnd;
 
-            juce::AudioFormatManager formatManager;
-            formatManager.registerBasicFormats();
-
-            if (auto reader = std::unique_ptr<juce::AudioFormatReader>(formatManager.createReaderFor(file));
-                reader != nullptr)
+            if (file == requestedFile && hasPeaks)
             {
-                lengthSeconds = static_cast<double>(reader->lengthInSamples) / reader->sampleRate;
-
-                const int columns = 960;
-                peaks.assign(static_cast<size_t>(columns) * 2, 0.0f);
-
-                const auto total = reader->lengthInSamples;
-                juce::AudioBuffer<float> chunk(static_cast<int>(juce::jmin(2u, reader->numChannels)),
-                                               16384);
-
-                for (juce::int64 start = 0; start < total; start += 16384)
-                {
-                    const auto toRead = static_cast<int>(juce::jmin<juce::int64>(16384, total - start));
-                    reader->read(&chunk, 0, toRead, start, true, true);
-
-                    for (int i = 0; i < toRead; ++i)
-                    {
-                        auto sample = chunk.getSample(0, i);
-
-                        if (chunk.getNumChannels() > 1)
-                            sample = 0.5f * (sample + chunk.getSample(1, i));
-
-                        const auto column = static_cast<size_t>((start + i) * columns / total);
-                        peaks[column * 2] = juce::jmin(peaks[column * 2], sample);
-                        peaks[column * 2 + 1] = juce::jmax(peaks[column * 2 + 1], sample);
-                    }
-                }
+                applyPendingTrim();
+                repaint();
+                return;
             }
 
-            if (trimEnd <= trimStart || trimEnd > lengthSeconds)
-                trimEnd = lengthSeconds;
+            requestedFile = file;
+            cancelLoad();
+            peaks.clear();
+            hasPeaks = false;
+            lengthSeconds = 0.0;
+            trimStart = pendingTrimStart;
+            trimEnd = pendingTrimEnd;
 
-            repaint();
+            if (requestedFile == juce::File())
+            {
+                repaint();
+                return;
+            }
+
+            if (cached.file == requestedFile)
+            {
+                peaks = cached.peaks;
+                lengthSeconds = cached.lengthSeconds;
+                hasPeaks = true;
+                applyPendingTrim();
+                repaint();
+                return;
+            }
+
+            if (isShowing())
+                startBackgroundLoad();
+            else
+                repaint();
         }
 
         void setTrim(double newTrimStart, double newTrimEnd)
@@ -139,7 +191,8 @@ namespace
             {
                 g.setColour(Palette::textDim);
                 g.setFont(juce::Font(juce::FontOptions().withHeight(13.0f)));
-                g.drawText("No audio loaded", waveArea, juce::Justification::centred);
+                g.drawText(requestedFile != juce::File() ? "Loading waveform..." : "No audio loaded",
+                           waveArea, juce::Justification::centred);
                 return;
             }
 
@@ -210,7 +263,58 @@ namespace
             dragging = 0;
         }
 
+        void visibilityChanged() override
+        {
+            if (isShowing() && requestedFile != juce::File() && ! hasPeaks && loadCancelled == nullptr)
+                startBackgroundLoad();
+        }
+
     private:
+        void cancelLoad()
+        {
+            if (loadCancelled != nullptr)
+                loadCancelled->store(true);
+            loadCancelled.reset();
+        }
+
+        void applyPendingTrim()
+        {
+            trimStart = pendingTrimStart;
+            trimEnd = (pendingTrimEnd <= trimStart || pendingTrimEnd > lengthSeconds)
+                          ? lengthSeconds
+                          : pendingTrimEnd;
+        }
+
+        void startBackgroundLoad()
+        {
+            cancelLoad();
+            loadCancelled = std::make_shared<std::atomic<bool>>(false);
+            auto cancelled = loadCancelled;
+            const auto file = requestedFile;
+            auto safeThis = juce::Component::SafePointer<WaveformView>(this);
+
+            juce::Thread::launch([safeThis, file, cancelled]
+            {
+                auto computed = computeWaveformPeaks(file, cancelled);
+                if (cancelled->load())
+                    return;
+
+                juce::MessageManager::callAsync([safeThis, file, cancelled, computed = std::move(computed)]() mutable
+                {
+                    if (safeThis == nullptr || cancelled->load() || file != safeThis->requestedFile)
+                        return;
+
+                    safeThis->peaks = std::move(computed.peaks);
+                    safeThis->lengthSeconds = computed.lengthSeconds;
+                    safeThis->hasPeaks = ! safeThis->peaks.empty();
+                    safeThis->cached = { file, safeThis->peaks, safeThis->lengthSeconds };
+                    safeThis->applyPendingTrim();
+                    safeThis->loadCancelled.reset();
+                    safeThis->repaint();
+                });
+            });
+        }
+
         float timeToX(double time) const
         {
             return 6.0f + static_cast<float>(time / juce::jmax(0.001, lengthSeconds))
@@ -223,11 +327,24 @@ namespace
             return juce::jlimit(0.0, lengthSeconds, static_cast<double>(proportion) * lengthSeconds);
         }
 
+        struct Cache
+        {
+            juce::File file;
+            std::vector<float> peaks;
+            double lengthSeconds = 0.0;
+        };
+
         std::vector<float> peaks; // min/max pairs
+        Cache cached;
+        juce::File requestedFile;
+        std::shared_ptr<std::atomic<bool>> loadCancelled;
         double lengthSeconds = 0.0;
         double trimStart = 0.0;
         double trimEnd = 0.0;
+        double pendingTrimStart = 0.0;
+        double pendingTrimEnd = 0.0;
         int dragging = 0;
+        bool hasPeaks = false;
     };
 }
 
@@ -953,7 +1070,10 @@ public:
         currentCue = cue;
 
         if (cue == nullptr)
+        {
+            waveform.setFile({}, 0.0, 0.0);
             return;
+        }
 
         waveform.setFile(cue->file, cue->trimStart,
                          cue->trimEnd > 0.0 ? cue->trimEnd : 1.0e9);

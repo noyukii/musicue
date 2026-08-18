@@ -34,6 +34,7 @@ public:
     void copySelectedCue();
     void pasteCues();
     void moveSelectedCue(int delta);
+    void selectAdjacentCue(int delta);
     void groupSelectedCue();
     void ungroupSelectedCue();
     void indentSelectedCue();

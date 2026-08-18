@@ -21,7 +21,8 @@ class SettingsWindow;
 
 class MainComponent : public juce::Component,
                       public juce::DragAndDropContainer,
-                      private juce::ChangeListener
+                      private juce::ChangeListener,
+                      private juce::Timer
 {
 public:
     explicit MainComponent(juce::PropertiesFile& props);
@@ -55,6 +56,7 @@ private:
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
     void checkForUpdates();
     void showUpdatePopup(const juce::String& version);
+    void timerCallback() override;
 
     juce::PropertiesFile& properties;
     AppSettings settings;
