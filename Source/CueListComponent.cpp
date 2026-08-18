@@ -536,6 +536,7 @@ void CueListComponent::showBulkFadeEditor()
 void CueListComponent::setCues(juce::Array<Cue> source, int standbyId)
 {
     cues = std::move(source); nextCueId = 1;
+    playheadTimer.stopTimer();
     for (auto& cue : cues) { cue.id = cue.id > 0 ? cue.id : nextCueId; nextCueId = juce::jmax(nextCueId, cue.id + 1); cue.playCount = 0; if (cue.isAudio() && durationProvider && cue.file.existsAsFile()) cue.durationSeconds = durationProvider(cue.file); }
     standbyCueId = standbyId; undoStack.clear(); activePlaylistChildren.clear(); randomHistory.clear(); rebuildVisibleRows(); normaliseStandby();
     if (! visibleRows.isEmpty()) table.selectRow(0); else if (onSelectionChanged) onSelectionChanged(); notifyContentChanged();
