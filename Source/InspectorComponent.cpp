@@ -86,34 +86,48 @@ namespace
 
         result.lengthSeconds = static_cast<double>(reader->lengthInSamples) / reader->sampleRate;
 
-        const int columns = 960;
+        const int columns = 512;
         result.peaks.assign(static_cast<size_t>(columns) * 2, 0.0f);
 
         const auto total = reader->lengthInSamples;
-        const int bufferSize = 65536;
-        juce::AudioBuffer<float> chunk(1, bufferSize);
+        constexpr int maxWindow = 1024;
+        juce::AudioBuffer<float> chunk(1, maxWindow);
 
-        // Overview only needs ~128 probes per column; still a sequential decode for compressed files.
-        const int step = juce::jmax(1, static_cast<int>(total / (static_cast<juce::int64>(columns) * 128)));
-
-        for (juce::int64 start = 0; start < total; start += bufferSize)
+        auto scanWindow = [&](juce::int64 pos, int numSamples, float& mn, float& mx)
         {
-            if (cancelled != nullptr && cancelled->load())
-                return {};
+            if (pos >= total || numSamples <= 0)
+                return;
 
-            const auto toRead = static_cast<int>(juce::jmin<juce::int64>(bufferSize, total - start));
-            reader->read(&chunk, 0, toRead, start, true, false);
+            const int toRead = static_cast<int>(juce::jmin<juce::int64>(numSamples, total - pos));
+            reader->read(&chunk, 0, toRead, pos, true, false);
             const float* samples = chunk.getReadPointer(0);
 
-            for (int i = 0; i < toRead; i += step)
+            for (int i = 0; i < toRead; ++i)
             {
-                const auto column = juce::jmin(columns - 1,
-                    static_cast<int>(((start + i) * static_cast<juce::int64>(columns)) / total));
-                const float sample = samples[i];
-                auto* pair = result.peaks.data() + static_cast<size_t>(column) * 2;
-                pair[0] = juce::jmin(pair[0], sample);
-                pair[1] = juce::jmax(pair[1], sample);
+                mn = juce::jmin(mn, samples[i]);
+                mx = juce::jmax(mx, samples[i]);
             }
+        };
+
+        for (int col = 0; col < columns; ++col)
+        {
+            if ((col & 7) == 0 && cancelled != nullptr && cancelled->load())
+                return {};
+
+            const auto colStart = static_cast<juce::int64>(col) * total / columns;
+            const auto colEnd = static_cast<juce::int64>(col + 1) * total / columns;
+            const auto colLen = juce::jmax<juce::int64>(1, colEnd - colStart);
+            const int window = static_cast<int>(juce::jmin<juce::int64>(maxWindow, colLen));
+
+            float mn = 0.0f;
+            float mx = 0.0f;
+            scanWindow(colStart, window, mn, mx);
+
+            if (colLen > maxWindow * 2)
+                scanWindow(colStart + colLen / 2, window, mn, mx);
+
+            result.peaks[static_cast<size_t>(col) * 2] = mn;
+            result.peaks[static_cast<size_t>(col) * 2 + 1] = mx;
         }
 
         return result;
