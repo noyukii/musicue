@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MusiCue VERSION 0.1.3 LANGUAGES C CXX)
+project(MusiCue VERSION 0.1.4 LANGUAGES C CXX)
 
 # Link the MSVC runtime statically so the Windows build runs without the
 # Visual C++ Redistributable installed (no VCRUNTIME140_1.dll dependency).
