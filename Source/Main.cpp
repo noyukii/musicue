@@ -6,7 +6,7 @@ class MusiCueApplication : public juce::JUCEApplication
 {
 public:
     const juce::String getApplicationName() override { return "MusiCue"; }
-    const juce::String getApplicationVersion() override { return "0.1.0"; }
+    const juce::String getApplicationVersion() override { return JUCE_APPLICATION_VERSION_STRING; }
     bool moreThanOneInstanceAllowed() override { return false; }
     void systemRequestedQuit() override;
 

@@ -125,6 +125,10 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
         markDirty();
         updateStatusDisplays();
     };
+    inspector.playingCueProvider = [this](int excludeId)
+    {
+        return cueList.firstPlayingAudioCueId(excludeId);
+    };
 
     inspectorToggleButton.button->onClick = [this]
     {
@@ -142,6 +146,7 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
     grabKeyboardFocus();
     setSize(1150, 760);
     showLauncher();
+    checkForUpdates();
 }
 
 MainComponent::~MainComponent()
@@ -589,6 +594,57 @@ void MainComponent::addRecentWorkspace(const juce::File& file)
         recent.remove(recent.size() - 1);
     properties.setValue("recentWorkspaces", recent.joinIntoString("\n"));
     properties.saveIfNeeded();
+}
+
+void MainComponent::checkForUpdates()
+{
+    const auto skippedVersion = properties.getValue("skippedUpdateVersion");
+
+    updateChecker.checkForUpdates(juce::JUCEApplication::getInstance()->getApplicationVersion(),
+        [safeThis = juce::Component::SafePointer<MainComponent>(this), skippedVersion](UpdateChecker::Result result)
+        {
+            if (safeThis == nullptr || ! result.updateAvailable || result.latestVersion == skippedVersion)
+                return;
+
+            safeThis->showUpdatePopup(result.latestVersion);
+        });
+}
+
+void MainComponent::showUpdatePopup(const juce::String& version)
+{
+    if (updatePopupShowing)
+        return;
+
+    updatePopupShowing = true;
+    auto safeThis = juce::Component::SafePointer<MainComponent>(this);
+
+    const auto options = juce::MessageBoxOptions()
+                             .withIconType(juce::MessageBoxIconType::InfoIcon)
+                             .withTitle("MusiCue " + version + " is available")
+                             .withMessage("A new version of MusiCue has been released.\n"
+                                          "You are currently running version "
+                                          + juce::JUCEApplication::getInstance()->getApplicationVersion() + ".")
+                             .withButton("Update")
+                             .withButton("Dismiss")
+                             .withButton("Do Not Ask Again")
+                             .withAssociatedComponent(this);
+
+    juce::AlertWindow::showAsync(options,
+        [safeThis, version](int result)
+        {
+            if (safeThis == nullptr)
+                return;
+
+            safeThis->updatePopupShowing = false;
+
+            if (result == 1)
+                juce::URL("https://noyukii.github.io/musicue").launchInDefaultBrowser();
+            else if (result == 3)
+            {
+                safeThis->properties.setValue("skippedUpdateVersion", version);
+                safeThis->properties.saveIfNeeded();
+            }
+        });
 }
 
 void MainComponent::updateWindowTitle()

@@ -15,6 +15,7 @@
 #include "AppSettings.h"
 #include "WorkspaceLauncherComponent.h"
 #include "MusiCueLookAndFeel.h"
+#include "UpdateChecker.h"
 
 class SettingsWindow;
 
@@ -52,6 +53,8 @@ private:
     void updateWindowTitle();
     void applySettings();
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
+    void checkForUpdates();
+    void showUpdatePopup(const juce::String& version);
 
     juce::PropertiesFile& properties;
     AppSettings settings;
@@ -84,6 +87,8 @@ private:
     bool showMode = false;
     bool dirty = false;
     bool closeConfirmationPending = false;
+    bool updatePopupShowing = false;
+    UpdateChecker updateChecker;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MainComponent)
 };

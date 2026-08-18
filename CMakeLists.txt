@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22)
-project(MusiCue VERSION 0.1.1 LANGUAGES C CXX)
+project(MusiCue VERSION 0.1.2 LANGUAGES C CXX)
 
 # Link the MSVC runtime statically so the Windows build runs without the
 # Visual C++ Redistributable installed (no VCRUNTIME140_1.dll dependency).
@@ -57,6 +57,7 @@ target_sources(MusiCue PRIVATE
     Source/WorkspaceFile.cpp
     Source/SettingsWindow.cpp
     Source/WorkspaceLauncherComponent.cpp
+    Source/UpdateChecker.cpp
 )
 
 target_compile_definitions(MusiCue PRIVATE
