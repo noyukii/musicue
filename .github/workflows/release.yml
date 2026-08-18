@@ -16,8 +16,10 @@ jobs:
         include:
           - os: macos-latest
             artifact: MusiCue-macOS.zip
+            notes: true
           - os: windows-latest
             artifact: MusiCue-Windows.zip
+            notes: false
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -51,4 +53,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ matrix.artifact }}
-          generate_release_notes: true
+          generate_release_notes: ${{ matrix.notes }}
