@@ -310,6 +310,8 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
         if (character == 'v') { cueList.pasteCues(); return true; }
         if (character == 'p') { cueList.previewSelected(); return true; }
         if (character == 'z') { cueList.undo(); return true; }
+        if (character == ']') { cueList.indentSelectedCue(); return true; }
+        if (character == '[') { cueList.outdentSelectedCue(); return true; }
 
         if (key == juce::KeyPress::upKey) { cueList.moveSelectedCue(-1); return true; }
         if (key == juce::KeyPress::downKey) { cueList.moveSelectedCue(1); return true; }
@@ -317,6 +319,16 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
     else if (key == juce::KeyPress::backspaceKey || key == juce::KeyPress::deleteKey)
     {
         cueList.deleteSelectedCue();
+        return true;
+    }
+    else if (key == juce::KeyPress::leftKey)
+    {
+        cueList.collapseSelectedGroup();
+        return true;
+    }
+    else if (key == juce::KeyPress::rightKey)
+    {
+        cueList.expandSelectedGroup();
         return true;
     }
 

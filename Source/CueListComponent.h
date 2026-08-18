@@ -8,13 +8,14 @@
 class CueListComponent : public juce::Component,
                          private juce::TableListBoxModel,
                          public juce::DragAndDropTarget,
-                         public juce::FileDragAndDropTarget
+                         public juce::FileDragAndDropTarget,
+                         private juce::Timer
 {
 public:
     CueListComponent();
     void resized() override;
 
-    void addCueFromFile(const juce::File& file, int insertIndex = -1);
+    void addCueFromFile(const juce::File& file);
     void addGroupCue();
     void addFadeCue();
     void setCues(juce::Array<Cue> newCues, int standbyCueId);
@@ -30,7 +31,14 @@ public:
     void pasteCues();
     void moveSelectedCue(int delta);
     void groupSelectedCue();
+    void ungroupSelectedCue();
+    void indentSelectedCue();
+    void outdentSelectedCue();
     void toggleSelectedGroup();
+    void expandSelectedGroup();
+    void collapseSelectedGroup();
+    void expandAllGroups();
+    void collapseAllGroups();
     void undo();
 
     void markCueFinished(int cueId);
@@ -43,6 +51,7 @@ public:
     void setDefaultContinueMode(int mode) { defaultContinueMode = mode; }
 
     Cue* getSelectedCue();
+    juce::Array<int> getSelectedCueIds() const;
     const Cue* getStandbyCue() const;
     int getStandbyCueId() const { return standbyCueId; }
     int getCueCount() const { return cues.size(); }
@@ -63,9 +72,16 @@ private:
     void selectedRowsChanged(int) override;
     juce::var getDragSourceDescription(const juce::SparseSet<int>&) override;
     bool isInterestedInDragSource(const SourceDetails&) override;
+    void itemDragEnter(const SourceDetails&) override;
+    void itemDragMove(const SourceDetails&) override;
+    void itemDragExit(const SourceDetails&) override;
     void itemDropped(const SourceDetails&) override;
     bool isInterestedInFileDrag(const juce::StringArray&) override;
     void filesDropped(const juce::StringArray&, int, int) override;
+    void paintOverChildren(juce::Graphics&) override;
+    void mouseMove(const juce::MouseEvent&) override;
+    void mouseExit(const juce::MouseEvent&) override;
+    void timerCallback() override;
 
     void rebuildVisibleRows();
     void appendVisibleChildren(int parentId, int depth);
@@ -87,10 +103,36 @@ private:
     juce::Colour groupColour(const Cue&) const;
     void notifyContentChanged();
     void rememberUndo();
+    void discardLastUndo();
     void normaliseStandby();
     void showCueMenu(juce::Point<int>);
     static bool isAudioFile(const juce::File&);
     static juce::String formatTime(double);
+
+    // Selection and tree-order move engine. Sibling order is the flat-array
+    // order among cues sharing a parentId; subtrees need not be contiguous.
+    juce::Array<int> canonicalIds(const juce::Array<int>& ids) const;
+    int childCount(int parentId) const;
+    int siblingIndexOf(const Cue&) const;
+    int insertionIndexFor(int parentId, int siblingIndex) const;
+    bool canMoveCueSubtrees(const juce::Array<int>& rootIds, int newParentId) const;
+    bool moveCueSubtrees(const juce::Array<int>& rootIds, int newParentId, int siblingIndex);
+    int createAudioCue(const juce::File& file, int parentId, int siblingIndex);
+    void setGroupCollapsed(int cueId, bool collapsed);
+    void selectRowsWithIds(const juce::Array<int>& ids);
+
+    // Disclosure chevron hit-testing and hover feedback
+    juce::Rectangle<float> disclosureCellBounds(int row) const;
+    int columnX(int columnId) const;
+
+    // Drop targeting: maps a mouse position to (parentId, siblingIndex)
+    enum class DropZone { none, before, after, inside };
+    DropZone dropZoneForRow(int row, int yInRow, int rowHeight) const;
+    bool computeDropTarget(juce::Point<int> tablePos, int& parentId, int& siblingIndex,
+                           DropZone& zone, int& indicatorRow, int& indicatorDepth) const;
+    void updateDropTarget(juce::Point<int> tablePos);
+    void clearDropTarget();
+    static juce::Array<int> idsFromDragDescription(const juce::var& description);
 
     struct VisibleRow { int cueIndex = -1; int depth = 0; };
     juce::TableListBox table;
@@ -104,5 +146,18 @@ private:
     bool standbyLinked = true;
     bool editingEnabled = true;
     int defaultContinueMode = 0;
+
+    std::unique_ptr<juce::Drawable> chevronRight, chevronDown;
+    std::unique_ptr<juce::Drawable> chevronRightHover, chevronDownHover;
+    int hoveredDisclosureRow = -1;
+
+    int dropIndicatorRow = -1;
+    int dropIndicatorDepth = 0;
+    DropZone dropIndicatorZone = DropZone::none;
+    int dragScrollDirection = 0;
+    juce::Point<int> lastDragTablePos { -1, -1 };
+    int autoExpandCueId = 0;
+    juce::uint32 autoExpandStartMs = 0;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CueListComponent)
 };

@@ -32,6 +32,8 @@ juce_add_binary_data(MusiCueAssets
     Assets/icons/fiber_manual_record.svg
     Assets/icons/undo.svg
     Assets/icons/view_agenda.svg
+    Assets/icons/chevron_right.svg
+    Assets/icons/expand_more.svg
     Assets/icons/settings.svg
     Assets/icons/workspace_open.svg
     Assets/icons/workspace_save.svg

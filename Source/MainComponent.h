@@ -19,6 +19,7 @@
 class SettingsWindow;
 
 class MainComponent : public juce::Component,
+                      public juce::DragAndDropContainer,
                       private juce::ChangeListener
 {
 public:
