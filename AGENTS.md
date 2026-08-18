@@ -24,7 +24,7 @@ Audio-thread work must remain real-time safe: no allocations, blocking locks sha
 
 ## Change, Commit & Pull Request Guidelines
 
-This checkout has no Git metadata, so no project commit convention can be derived. Use concise imperative subjects, for example `Add cue fade validation`. Keep each change focused. Pull requests should state behavior changed, testing performed, linked issue if applicable, and include screenshots or a short recording for UI changes. Do not commit user workspaces, audio files, local settings, or generated build outputs.
+The repo lives on GitHub (`origin/main`) with a single `main` branch and no established commit convention. Use concise imperative subjects, for example `Add cue fade validation`. The `build/` directory is gitignored and must stay untracked. Keep each change focused. Pull requests should state behavior changed, testing performed, linked issue if applicable, and include screenshots or a short recording for UI changes. Do not commit user workspaces, audio files, local settings, or generated build outputs.
 
 ## Configuration & Dependencies
 
