@@ -234,6 +234,7 @@ bool AudioEngine::playAudioCue(const Cue& cue, std::optional<float> initialGain,
     cuePlayer->fadeOut = juce::jmax(0.0, cue.fadeOut);
     cuePlayer->loop = cue.loop;
     cuePlayer->pendingStartSeconds = initialGain.has_value() ? 0.0 : juce::jmax(0.0, cue.preWait);
+    cuePlayer->playDuration = juce::jmax(0.0, cue.getEffectiveDuration());
 
     mixer.addInputSource(cuePlayer->gainPan.get(), false);
     cuePlayer->gainPan->setPan(static_cast<float>(cue.pan));
@@ -364,17 +365,86 @@ double AudioEngine::getDurationForFile(const juce::File& file)
     return 0.0;
 }
 
+double AudioEngine::getFadePlayhead(int cueId) const
+{
+    for (const auto& run : activeFades)
+    {
+        if (run.cueId != cueId || run.actions.isEmpty())
+            continue;
+
+        auto delay = run.actions.getReference(0).definition.delaySeconds;
+        auto duration = 0.0;
+        for (const auto& action : run.actions)
+        {
+            delay = juce::jmin(delay, action.definition.delaySeconds);
+            duration = juce::jmax(duration, action.definition.durationSeconds);
+        }
+
+        if (run.elapsedSeconds < delay)
+            return 0.0;
+        if (duration <= 0.0)
+            return 1.0;
+        return juce::jlimit(0.0, 1.0, (run.elapsedSeconds - delay) / duration);
+    }
+
+    return -1.0;
+}
+
+double AudioEngine::getCuePlayhead(int cueId) const
+{
+    for (const auto& run : activeFades)
+    {
+        if (run.cueId != cueId || run.actions.isEmpty())
+            continue;
+
+        auto delay = run.actions.getReference(0).definition.delaySeconds;
+        auto duration = 0.0;
+        for (const auto& action : run.actions)
+        {
+            delay = juce::jmin(delay, action.definition.delaySeconds);
+            duration = juce::jmax(duration, action.definition.durationSeconds);
+        }
+
+        if (run.elapsedSeconds < delay)
+            return -1.0;
+        if (duration <= 0.0)
+            return 1.0;
+        return juce::jlimit(0.0, 1.0, (run.elapsedSeconds - delay) / duration);
+    }
+
+    const CuePlayer* latest = nullptr;
+    for (auto* cuePlayer : activeCues)
+    {
+        if (cuePlayer->cueId != cueId || cuePlayer->stopping)
+            continue;
+        if (latest == nullptr || cuePlayer->instanceId > latest->instanceId)
+            latest = cuePlayer;
+    }
+
+    if (latest == nullptr || latest->pendingStartSeconds > 0.0)
+        return -1.0;
+
+    auto duration = latest->playDuration;
+    if (duration <= 0.0)
+    {
+        const auto end = latest->trimEnd > latest->trimStart
+            ? latest->trimEnd : latest->transport->getLengthInSeconds();
+        duration = juce::jmax(0.0, end - latest->trimStart);
+    }
+
+    if (duration <= 0.0)
+        return 1.0;
+
+    auto elapsed = latest->transport->getCurrentPosition() - latest->trimStart;
+    if (latest->loop && duration > 0.0)
+        elapsed = std::fmod(juce::jmax(0.0, elapsed), duration);
+
+    return juce::jlimit(0.0, 1.0, elapsed / duration);
+}
+
 float AudioEngine::applyFadeCurve(Cue::FadeCurve curve, float position)
 {
-    const auto t = juce::jlimit(0.0f, 1.0f, position);
-    switch (curve)
-    {
-        case Cue::FadeCurve::easeIn: return t * t;
-        case Cue::FadeCurve::easeOut: return 1.0f - (1.0f - t) * (1.0f - t);
-        case Cue::FadeCurve::sCurve: return t * t * (3.0f - 2.0f * t);
-        case Cue::FadeCurve::linear: break;
-    }
-    return t;
+    return Cue::applyFadeCurve(curve, position);
 }
 
 void AudioEngine::updateFades(double elapsedSeconds)

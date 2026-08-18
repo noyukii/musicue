@@ -1,4 +1,5 @@
 #include "InspectorComponent.h"
+#include "FadeEditorComponent.h"
 #include <juce_audio_formats/juce_audio_formats.h>
 
 namespace
@@ -1012,371 +1013,109 @@ class InspectorComponent::FadeTab : public juce::Component
 public:
     FadeTab()
     {
-        styleLabel(crossfadeLabel, "Crossfade to:");
-        addAndMakeVisible(crossfadeLabel);
-        crossfadeBox.setTextWhenNothingSelected("Choose audio cue");
-        crossfadeBox.onChange = [this] { updateCrossfadeButton(); };
-        crossfadeButton.setButtonText("Create");
-        crossfadeButton.onClick = [this] { createCrossfade(); };
-        addAndMakeVisible(crossfadeBox);
-        addAndMakeVisible(crossfadeButton);
-
-        styleLabel(actionLabel, "Action:");
-        styleLabel(targetLabel, "Add target:");
-        styleLabel(delayLabel, "Delay:");
-        styleLabel(durationLabel, "Duration:");
-        styleLabel(curveLabel, "Curve:");
-        styleLabel(stopPolicyLabel, "Stop fade:");
-        for (auto* label : { &actionLabel, &targetLabel, &delayLabel, &durationLabel, &curveLabel, &stopPolicyLabel })
-            addAndMakeVisible(*label);
-
-        actionBox.onChange = [this] { if (! updating) { selectedAction = actionBox.getSelectedId() - 1; refreshFields(); } };
-        targetBox.setTextWhenNothingSelected("Choose audio cue");
-        addButton.setButtonText("Add");
-        removeButton.setButtonText("Remove");
-        addButton.onClick = [this]
+        editor.onChange = [this] { commit(); };
+        editor.onIncomingSelected = [this](int cueId)
         {
-            if (currentCue == nullptr || targetBox.getSelectedId() <= 0)
-                return;
-            Cue::FadeAction action;
-            action.targetCueId = targetBox.getSelectedId();
-            currentCue->fadeActions.add(action);
-            selectedAction = currentCue->fadeActions.size() - 1;
-            refreshActions();
-            notifyEdited();
+            if (onPreviewCue != nullptr)
+                onPreviewCue(cueId);
         };
-        removeButton.onClick = [this]
+        editor.playheadProvider = [this]() -> double
         {
-            if (getAction() != nullptr)
-            {
-                currentCue->fadeActions.remove(selectedAction);
-                selectedAction = juce::jmax(0, selectedAction - 1);
-                refreshActions();
-                notifyEdited();
-            }
+            if (currentCue == nullptr || fadeProgressProvider == nullptr)
+                return -1.0;
+            return fadeProgressProvider(currentCue->id);
         };
-        for (auto* component : { static_cast<juce::Component*>(&actionBox), static_cast<juce::Component*>(&targetBox),
-                                 static_cast<juce::Component*>(&addButton), static_cast<juce::Component*>(&removeButton) })
-            addAndMakeVisible(*component);
-
-        styleEditor(delayEditor);
-        styleEditor(durationEditor);
-        for (auto* editor : { &delayEditor, &durationEditor })
-        {
-            editor->onReturnKey = [this, editor] { applyFields(); editor->giveAwayKeyboardFocus(); };
-            editor->onFocusLost = [this] { applyFields(); };
-            addAndMakeVisible(*editor);
-        }
-
-        curveBox.addItem("Linear", 1);
-        curveBox.addItem("Ease in", 2);
-        curveBox.addItem("Ease out", 3);
-        curveBox.addItem("S-curve", 4);
-        curveBox.onChange = [this] { applyFields(); };
-        stopPolicyBox.addItem("Hold targets", 1);
-        stopPolicyBox.addItem("Stop targets", 2);
-        stopPolicyBox.onChange = [this] { applyFields(); };
-        addAndMakeVisible(curveBox);
-        addAndMakeVisible(stopPolicyBox);
-
-        gainToggle.setButtonText("Fade gain");
-        panToggle.setButtonText("Fade pan");
-        startToggle.setButtonText("Start if stopped");
-        stopToggle.setButtonText("Stop at end");
-        for (auto* toggle : { &gainToggle, &panToggle, &startToggle, &stopToggle })
-        {
-            toggle->onClick = [this] { applyFields(); };
-            toggle->setWantsKeyboardFocus(false);
-            addAndMakeVisible(*toggle);
-        }
-
-        configureSlider(targetGainSlider, -60.0, 6.0, 0.1, " dB");
-        configureSlider(targetPanSlider, -1.0, 1.0, 0.01, {});
-        configureSlider(startGainSlider, -60.0, 6.0, 0.1, " dB");
+        addAndMakeVisible(editor);
     }
 
     void setAvailableCues(const juce::Array<Cue>& cues)
     {
         availableCues = cues;
-        refreshTargets();
-        refreshActions();
+        editor.setAvailableCues(cues);
     }
 
     void setCue(Cue* cue)
     {
         currentCue = cue;
-        selectedAction = 0;
-        refreshTargets();
-        refreshActions();
+        updating = true;
+        if (currentCue != nullptr && currentCue->isFade())
+            editor.setSetup(Cue::FadeSetup::fromActions(currentCue->fadeActions, currentCue->fadeStopPolicy));
+        else
+            editor.setSetup({});
+        updating = false;
     }
 
     std::function<void()> onEdited;
-    std::function<int(int excludeCueId)> playingCueProvider;
+    std::function<void(int cueId)> onPreviewCue;
+    std::function<double(int cueId)> fadeProgressProvider;
 
     void paint(juce::Graphics& g) override { g.fillAll(Palette::inspectorBg); }
 
-    void resized() override
-    {
-        constexpr int rowHeight = 24;
-        constexpr int rowGap = 8;
-        constexpr int sectionGap = 16;
-        static constexpr int labelWidth = 80;
-        constexpr int buttonWidth = 76;
-        constexpr int toggleWidth = 170;
-
-        auto r = getLocalBounds().reduced(16);
-
-        auto placeLabel = [](juce::Label& label, juce::Rectangle<int>& row)
-        {
-            label.setBounds(row.removeFromLeft(labelWidth));
-            row.removeFromLeft(4);
-        };
-
-        auto placeSmallLabel = [](juce::Label& label, juce::Rectangle<int>& row)
-        {
-            label.setBounds(row.removeFromLeft(64));
-            row.removeFromLeft(4);
-        };
-
-        auto row = r.removeFromTop(rowHeight);
-        placeLabel(crossfadeLabel, row);
-        crossfadeButton.setBounds(row.removeFromRight(buttonWidth));
-        row.removeFromRight(8);
-        crossfadeBox.setBounds(row);
-        r.removeFromTop(sectionGap);
-
-        row = r.removeFromTop(rowHeight);
-        placeLabel(actionLabel, row);
-        removeButton.setBounds(row.removeFromRight(buttonWidth));
-        row.removeFromRight(8);
-        actionBox.setBounds(row);
-        r.removeFromTop(rowGap);
-
-        row = r.removeFromTop(rowHeight);
-        placeLabel(targetLabel, row);
-        addButton.setBounds(row.removeFromRight(buttonWidth));
-        row.removeFromRight(8);
-        targetBox.setBounds(row);
-        r.removeFromTop(sectionGap);
-
-        row = r.removeFromTop(rowHeight);
-        auto half = row.removeFromLeft((row.getWidth() - 12) / 2);
-        row.removeFromLeft(12);
-        placeSmallLabel(delayLabel, half);
-        delayEditor.setBounds(half);
-        placeSmallLabel(durationLabel, row);
-        durationEditor.setBounds(row);
-        r.removeFromTop(rowGap);
-
-        row = r.removeFromTop(rowHeight);
-        half = row.removeFromLeft((row.getWidth() - 12) / 2);
-        row.removeFromLeft(12);
-        placeSmallLabel(curveLabel, half);
-        curveBox.setBounds(half);
-        placeSmallLabel(stopPolicyLabel, row);
-        stopPolicyBox.setBounds(row);
-        r.removeFromTop(sectionGap);
-
-        auto placeToggleRow = [&](juce::ToggleButton& toggle, juce::Slider* slider)
-        {
-            auto toggleRow = r.removeFromTop(rowHeight);
-            toggle.setBounds(toggleRow.removeFromLeft(toggleWidth));
-            toggleRow.removeFromLeft(12);
-            if (slider != nullptr)
-                slider->setBounds(toggleRow);
-            r.removeFromTop(rowGap);
-        };
-
-        placeToggleRow(gainToggle, &targetGainSlider);
-        placeToggleRow(panToggle, &targetPanSlider);
-        placeToggleRow(startToggle, &startGainSlider);
-        placeToggleRow(stopToggle, nullptr);
-    }
+    void resized() override { editor.setBounds(getLocalBounds()); }
 
 private:
-    void configureSlider(juce::Slider& slider, double minimum, double maximum, double interval,
-                         const juce::String& suffix)
+    bool isAutoName(const juce::String& name) const
     {
-        slider.setSliderStyle(juce::Slider::LinearHorizontal);
-        slider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 58, 22);
-        slider.setRange(minimum, maximum, interval);
-        slider.setTextValueSuffix(suffix);
-        slider.setColour(juce::Slider::trackColourId, juce::Colour(0xff777777));
-        slider.setColour(juce::Slider::thumbColourId, Palette::textPrimary);
-        slider.onValueChange = [this] { applyFields(); };
-        addAndMakeVisible(slider);
+        return name.startsWith("(Untitled Fade Cue") || name.startsWith("Crossfade to ")
+            || name.startsWith("Fade out ");
     }
 
-    Cue::FadeAction* getAction()
-    {
-        if (currentCue == nullptr || ! currentCue->isFade()
-            || ! juce::isPositiveAndBelow(selectedAction, currentCue->fadeActions.size()))
-            return nullptr;
-        return &currentCue->fadeActions.getReference(selectedAction);
-    }
-
-    juce::String nameForTarget(int id) const
-    {
-        for (const auto& cue : availableCues)
-            if (cue.id == id)
-                return cue.number + " - " + cue.name;
-        return "Missing target";
-    }
-
-    void refreshTargets()
-    {
-        const auto oldId = targetBox.getSelectedId();
-        const auto oldCrossfadeId = crossfadeBox.getSelectedId();
-        targetBox.clear(juce::dontSendNotification);
-        crossfadeBox.clear(juce::dontSendNotification);
-        for (const auto& cue : availableCues)
-            if (cue.isAudio())
-            {
-                targetBox.addItem(cue.number + " - " + cue.name, cue.id);
-                crossfadeBox.addItem(cue.number + " - " + cue.name, cue.id);
-            }
-        targetBox.setSelectedId(oldId, juce::dontSendNotification);
-        crossfadeBox.setSelectedId(oldCrossfadeId, juce::dontSendNotification);
-        updateCrossfadeButton();
-    }
-
-    void updateCrossfadeButton()
-    {
-        crossfadeButton.setEnabled(currentCue != nullptr && currentCue->isFade()
-                                   && crossfadeBox.getSelectedId() > 0);
-    }
-
-    void createCrossfade()
-    {
-        if (currentCue == nullptr || ! currentCue->isFade())
-            return;
-
-        const auto toId = crossfadeBox.getSelectedId();
-        if (toId <= 0)
-            return;
-
-        auto fromId = 0;
-        for (const auto& action : currentCue->fadeActions)
-            if (action.targetCueId != toId)
-            {
-                fromId = action.targetCueId;
-                break;
-            }
-        if (fromId == 0 && playingCueProvider != nullptr)
-            fromId = playingCueProvider(toId);
-
-        auto duration = 3.0;
-        auto curve = Cue::FadeCurve::sCurve;
-        if (const auto* action = getAction())
-        {
-            duration = action->durationSeconds;
-            curve = action->curve;
-        }
-
-        currentCue->fadeActions = Cue::makeCrossfadeActions(fromId, toId, duration, curve);
-
-        if (currentCue->name.startsWith("(Untitled Fade Cue") || currentCue->name.startsWith("Crossfade to "))
-            for (const auto& cue : availableCues)
-                if (cue.id == toId)
-                {
-                    currentCue->name = "Crossfade to " + cue.name;
-                    break;
-                }
-
-        selectedAction = 0;
-        refreshActions();
-        notifyEdited();
-    }
-
-    void refreshActions()
-    {
-        updating = true;
-        actionBox.clear(juce::dontSendNotification);
-        if (currentCue != nullptr && currentCue->isFade())
-            for (int i = 0; i < currentCue->fadeActions.size(); ++i)
-                actionBox.addItem("Action " + juce::String(i + 1) + ": "
-                                      + nameForTarget(currentCue->fadeActions[i].targetCueId), i + 1);
-        if (currentCue == nullptr || ! currentCue->isFade() || currentCue->fadeActions.isEmpty())
-            selectedAction = -1;
-        else
-            selectedAction = juce::jlimit(0, currentCue->fadeActions.size() - 1, selectedAction);
-        actionBox.setSelectedId(selectedAction + 1, juce::dontSendNotification);
-        updating = false;
-        refreshFields();
-    }
-
-    void refreshFields()
-    {
-        updating = true;
-        const auto* action = getAction();
-        const auto enabled = action != nullptr;
-        removeButton.setEnabled(enabled);
-        for (auto* component : { static_cast<juce::Component*>(&delayEditor), static_cast<juce::Component*>(&durationEditor),
-                                 static_cast<juce::Component*>(&curveBox), static_cast<juce::Component*>(&gainToggle),
-                                 static_cast<juce::Component*>(&targetGainSlider), static_cast<juce::Component*>(&panToggle),
-                                 static_cast<juce::Component*>(&targetPanSlider), static_cast<juce::Component*>(&startToggle),
-                                 static_cast<juce::Component*>(&startGainSlider), static_cast<juce::Component*>(&stopToggle) })
-            component->setEnabled(enabled);
-        if (currentCue != nullptr && currentCue->isFade())
-            stopPolicyBox.setSelectedId(static_cast<int>(currentCue->fadeStopPolicy) + 1, juce::dontSendNotification);
-        if (action != nullptr)
-        {
-            delayEditor.setText(formatInspectorTime(action->delaySeconds), false);
-            durationEditor.setText(formatInspectorTime(action->durationSeconds), false);
-            curveBox.setSelectedId(static_cast<int>(action->curve) + 1, juce::dontSendNotification);
-            gainToggle.setToggleState(action->fadeGain, juce::dontSendNotification);
-            targetGainSlider.setValue(action->targetGainDb, juce::dontSendNotification);
-            panToggle.setToggleState(action->fadePan, juce::dontSendNotification);
-            targetPanSlider.setValue(action->targetPan, juce::dontSendNotification);
-            startToggle.setToggleState(action->startIfStopped, juce::dontSendNotification);
-            startGainSlider.setValue(action->startGainDb, juce::dontSendNotification);
-            stopToggle.setToggleState(action->stopAtEnd, juce::dontSendNotification);
-            startToggle.setEnabled(action->fadeGain);
-            startGainSlider.setEnabled(action->fadeGain && action->startIfStopped);
-            targetGainSlider.setEnabled(action->fadeGain);
-            targetPanSlider.setEnabled(action->fadePan);
-        }
-        stopPolicyBox.setEnabled(currentCue != nullptr && currentCue->isFade());
-        crossfadeBox.setEnabled(currentCue != nullptr && currentCue->isFade());
-        updateCrossfadeButton();
-        updating = false;
-    }
-
-    void applyFields()
+    void commit()
     {
         if (updating || currentCue == nullptr || ! currentCue->isFade())
             return;
-        currentCue->fadeStopPolicy = static_cast<Cue::FadeStopPolicy>(juce::jlimit(
-            0, 1, stopPolicyBox.getSelectedId() - 1));
-        if (auto* action = getAction())
-        {
-            action->delaySeconds = juce::jmax(0.0, parseTimeText(delayEditor.getText()));
-            action->durationSeconds = juce::jmax(0.0, parseTimeText(durationEditor.getText()));
-            action->curve = static_cast<Cue::FadeCurve>(juce::jlimit(0, 3, curveBox.getSelectedId() - 1));
-            action->fadeGain = gainToggle.getToggleState();
-            action->targetGainDb = targetGainSlider.getValue();
-            action->fadePan = panToggle.getToggleState();
-            action->targetPan = targetPanSlider.getValue();
-            action->startIfStopped = action->fadeGain && startToggle.getToggleState();
-            action->startGainDb = startGainSlider.getValue();
-            action->stopAtEnd = stopToggle.getToggleState();
-        }
-        refreshFields();
-        notifyEdited();
+
+        const auto setup = editor.getSetup();
+        currentCue->fadeStopPolicy = setup.stopPolicy;
+        currentCue->fadeActions = setup.toActions(setup.fromCueId, setup.toCueId);
+        if (currentCue->name.isEmpty() || isAutoName(currentCue->name))
+            currentCue->name = Cue::makeFadeName(availableCues, setup.fromCueId, setup.toCueId);
+
+        if (onEdited != nullptr)
+            onEdited();
     }
 
-    void notifyEdited() { if (onEdited != nullptr) onEdited(); }
-
+    FadeEditorComponent editor { FadeEditorComponent::Mode::inspector };
     juce::Array<Cue> availableCues;
     Cue* currentCue = nullptr;
-    int selectedAction = -1;
     bool updating = false;
-    juce::Label actionLabel, targetLabel, delayLabel, durationLabel, curveLabel, stopPolicyLabel, crossfadeLabel;
-    juce::ComboBox actionBox, targetBox, curveBox, stopPolicyBox, crossfadeBox;
-    juce::TextButton addButton, removeButton, crossfadeButton;
-    juce::TextEditor delayEditor, durationEditor;
-    juce::ToggleButton gainToggle, panToggle, startToggle, stopToggle;
-    juce::Slider targetGainSlider, targetPanSlider, startGainSlider;
+};
+
+class InspectorComponent::InspectorViewport : public juce::Component
+{
+public:
+    InspectorViewport(juce::Component& contentToScroll, int minimumContentHeight)
+        : content(contentToScroll), minHeight(minimumContentHeight)
+    {
+        viewport.setViewedComponent(&content, false);
+        viewport.setScrollBarsShown(true, false);
+        viewport.setScrollOnDragMode(juce::Viewport::ScrollOnDragMode::never);
+        viewport.setScrollBarThickness(8);
+        viewport.setColour(juce::ScrollBar::thumbColourId, Palette::controlDown);
+        addAndMakeVisible(viewport);
+    }
+
+    void paint(juce::Graphics& g) override
+    {
+        g.fillAll(Palette::inspectorBg);
+    }
+
+    void resized() override
+    {
+        viewport.setBounds(getLocalBounds());
+
+        const auto height = juce::jmax(minHeight, viewport.getMaximumVisibleHeight());
+        content.setSize(viewport.getMaximumVisibleWidth(), height);
+
+        const auto widthAfterScrollBars = viewport.getMaximumVisibleWidth();
+        if (widthAfterScrollBars != content.getWidth())
+            content.setSize(widthAfterScrollBars, height);
+    }
+
+private:
+    juce::Viewport viewport;
+    juce::Component& content;
+    int minHeight = 0;
 };
 
 InspectorComponent::InspectorComponent()
@@ -1413,10 +1152,24 @@ InspectorComponent::InspectorComponent()
 
     fadeTab = std::make_unique<FadeTab>();
     wireEdited(fadeTab.get());
-    fadeTab->playingCueProvider = [this](int excludeId)
+    fadeTab->onPreviewCue = [this](int cueId)
     {
-        return playingCueProvider != nullptr ? playingCueProvider(excludeId) : 0;
+        if (onPreviewCue != nullptr)
+            onPreviewCue(cueId);
     };
+    fadeTab->fadeProgressProvider = [this](int cueId)
+    {
+        return fadeProgressProvider != nullptr ? fadeProgressProvider(cueId) : -1.0;
+    };
+
+    basicsHost = std::make_unique<InspectorViewport>(*basicsTab, 236);
+    triggersHost = std::make_unique<InspectorViewport>(*triggersTab, 148);
+    ioHost = std::make_unique<InspectorViewport>(*ioTab, 142);
+    timeLoopsHost = std::make_unique<InspectorViewport>(*timeLoopsTab, 180);
+    levelsHost = std::make_unique<InspectorViewport>(*levelsTab, 150);
+    trimHost = std::make_unique<InspectorViewport>(*trimTab, 200);
+    modeHost = std::make_unique<InspectorViewport>(*modeTab, 378);
+    fadeHost = std::make_unique<InspectorViewport>(*fadeTab, 448);
 
     tabs.setTabBarDepth(26);
     tabs.setColour(juce::TabbedComponent::backgroundColourId, Palette::inspectorBg);
@@ -1439,22 +1192,22 @@ InspectorComponent::~InspectorComponent() = default;
 void InspectorComponent::rebuildTabs(bool groupSelected, bool fadeSelected)
 {
     tabs.clearTabs();
-    tabs.addTab("Basics", Palette::inspectorBg, basicsTab.get(), false);
-    tabs.addTab("Triggers", Palette::inspectorBg, triggersTab.get(), false);
+    tabs.addTab("Basics", Palette::inspectorBg, basicsHost.get(), false);
+    tabs.addTab("Triggers", Palette::inspectorBg, triggersHost.get(), false);
     if (groupSelected)
     {
-        tabs.addTab("Mode", Palette::inspectorBg, modeTab.get(), false);
+        tabs.addTab("Mode", Palette::inspectorBg, modeHost.get(), false);
     }
     else if (fadeSelected)
     {
-        tabs.addTab("Fade", Palette::inspectorBg, fadeTab.get(), false);
+        tabs.addTab("Fade", Palette::inspectorBg, fadeHost.get(), false);
     }
     else
     {
-        tabs.addTab("I/O", Palette::inspectorBg, ioTab.get(), false);
-        tabs.addTab("Time & Loops", Palette::inspectorBg, timeLoopsTab.get(), false);
-        tabs.addTab("Levels", Palette::inspectorBg, levelsTab.get(), false);
-        tabs.addTab("Trim", Palette::inspectorBg, trimTab.get(), false);
+        tabs.addTab("I/O", Palette::inspectorBg, ioHost.get(), false);
+        tabs.addTab("Time & Loops", Palette::inspectorBg, timeLoopsHost.get(), false);
+        tabs.addTab("Levels", Palette::inspectorBg, levelsHost.get(), false);
+        tabs.addTab("Trim", Palette::inspectorBg, trimHost.get(), false);
     }
     if (tabs.getCurrentTabIndex() != 0)
         tabs.setCurrentTabIndex(0);

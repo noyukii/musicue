@@ -19,6 +19,8 @@ public:
     void addGroupCue();
     void addFadeCue();
     void addCrossfadeCue(int toCueId);
+    void showBulkFadeEditor();
+    void previewCue(int cueId);
     int firstPlayingAudioCueId(int excludeId) const;
     void setCues(juce::Array<Cue> newCues, int standbyCueId);
     const juce::Array<Cue>& getCues() const { return cues; }
@@ -61,6 +63,7 @@ public:
     void setEditingEnabled(bool enabled);
 
     std::function<double(const juce::File&)> durationProvider;
+    std::function<double(int cueId)> playheadProvider;
     std::function<bool(const Cue&)> onPlayCue;
     std::function<void(int)> onStopCue;
     std::function<void()> onSelectionChanged;
@@ -103,11 +106,17 @@ private:
     double calculateGroupDuration(int groupId) const;
     void paintGroupOutline(juce::Graphics&, int row, int width, int height) const;
     juce::Colour groupColour(const Cue&) const;
+    double playProgressFor(const Cue&) const;
+    bool hasPlayingCues() const;
+    void startPlayheadUpdates();
+    void onPlayheadTick();
     void notifyContentChanged();
     void rememberUndo();
     void discardLastUndo();
     void normaliseStandby();
     void showCueMenu(juce::Point<int>);
+    void applyFadeSetup(const Cue::FadeSetup& setup, const juce::Array<int>& fromIds);
+    juce::Array<int> selectedAudioCueIds() const;
     static bool isAudioFile(const juce::File&);
     static juce::String formatTime(double);
 
@@ -160,6 +169,14 @@ private:
     juce::Point<int> lastDragTablePos { -1, -1 };
     int autoExpandCueId = 0;
     juce::uint32 autoExpandStartMs = 0;
+
+    struct PlayheadTimer : juce::Timer
+    {
+        explicit PlayheadTimer(CueListComponent& o) : owner(o) {}
+        void timerCallback() override { owner.onPlayheadTick(); }
+        CueListComponent& owner;
+    };
+    PlayheadTimer playheadTimer { *this };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CueListComponent)
 };

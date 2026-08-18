@@ -26,6 +26,10 @@ public:
     void updateCueParameters(int cueId, double gainDb, double pan);
     void setMasterGain(float newGain);
     double getDurationForFile(const juce::File& file);
+    // 0-1 while this fade cue is running; negative if it is not.
+    double getFadePlayhead(int cueId) const;
+    // 0-1 while an audio or fade cue's action is running; negative if idle or still in pre-wait.
+    double getCuePlayhead(int cueId) const;
 
     std::function<void(int cueId, bool completedNaturally)> onCueFinished;
     std::function<void(int cueId)> onCueStarted;
@@ -108,6 +112,7 @@ private:
         double trimEnd = 0.0;
         double fadeOut = 0.0;
         double pendingStartSeconds = 0.0;
+        double playDuration = 0.0;
         bool loop = false;
         bool stopping = false;
         bool paused = false;

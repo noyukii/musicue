@@ -58,6 +58,37 @@ struct Cue
     bool isAudio() const { return kind == Kind::audio; }
     bool isFade() const { return kind == Kind::fade; }
 
+    static float applyFadeCurve(FadeCurve curve, float position)
+    {
+        const auto t = juce::jlimit(0.0f, 1.0f, position);
+        switch (curve)
+        {
+            case FadeCurve::easeIn: return t * t;
+            case FadeCurve::easeOut: return 1.0f - (1.0f - t) * (1.0f - t);
+            case FadeCurve::sCurve: return t * t * (3.0f - 2.0f * t);
+            case FadeCurve::linear: break;
+        }
+        return t;
+    }
+
+    static int nextAudioCueId(const juce::Array<Cue>& cues, int afterId)
+    {
+        auto seen = false;
+        for (const auto& cue : cues)
+        {
+            if (! seen)
+            {
+                if (cue.id == afterId)
+                    seen = true;
+                continue;
+            }
+
+            if (cue.isAudio())
+                return cue.id;
+        }
+        return 0;
+    }
+
     // Canonical song-to-song transition: fade the old song out and stop it,
     // fade the new song in from silence (starting it if needed).
     static juce::Array<FadeAction> makeCrossfadeActions(int fromCueId, int toCueId,
@@ -91,6 +122,115 @@ struct Cue
 
         return actions;
     }
+
+    static juce::String makeFadeName(const juce::Array<Cue>& cues, int fromId, int toId)
+    {
+        auto nameOf = [&cues](int cueId) -> juce::String
+        {
+            for (const auto& cue : cues)
+                if (cue.id == cueId)
+                    return cue.name;
+            return {};
+        };
+
+        if (toId > 0)
+            return "Crossfade to " + nameOf(toId);
+        if (fromId > 0)
+            return "Fade out " + nameOf(fromId);
+        return "(Untitled Fade Cue)";
+    }
+
+    struct FadeSetup
+    {
+        int fromCueId = 0;
+        int toCueId = 0;
+        bool toNextInLine = false;
+        double delaySeconds = 0.0;
+        double durationSeconds = 3.0;
+        FadeCurve curve = FadeCurve::sCurve;
+        FadeStopPolicy stopPolicy = FadeStopPolicy::hold;
+        bool fadeGain = true;
+        double targetGainDb = -60.0;
+        bool fadePan = false;
+        double targetPan = 0.0;
+        bool stopAtEnd = true;
+        double startGainDb = -60.0;
+
+        juce::Array<FadeAction> toActions(int resolvedFromId, int resolvedToId) const
+        {
+            auto actions = Cue::makeCrossfadeActions(resolvedFromId, resolvedToId, durationSeconds, curve);
+            for (auto& action : actions)
+            {
+                action.delaySeconds = delaySeconds;
+                if (action.startIfStopped)
+                {
+                    action.startIfStopped = true;
+                    action.startGainDb = startGainDb;
+                }
+                else
+                {
+                    action.fadeGain = fadeGain;
+                    action.targetGainDb = targetGainDb;
+                    action.fadePan = fadePan;
+                    action.targetPan = targetPan;
+                    action.stopAtEnd = stopAtEnd;
+                }
+            }
+            return actions;
+        }
+
+        static FadeSetup fromActions(const juce::Array<FadeAction>& actions, FadeStopPolicy policy)
+        {
+            FadeSetup setup;
+            setup.stopPolicy = policy;
+            if (actions.isEmpty())
+                return setup;
+
+            const FadeAction* outgoing = nullptr;
+            const FadeAction* incoming = nullptr;
+            for (const auto& action : actions)
+            {
+                if (action.startIfStopped)
+                    incoming = &action;
+                else if (outgoing == nullptr)
+                    outgoing = &action;
+            }
+
+            if (outgoing == nullptr && incoming == nullptr)
+                outgoing = &actions.getReference(0);
+            else if (outgoing == nullptr && actions.size() > 1)
+                outgoing = &actions.getReference(0) == incoming ? &actions.getReference(1)
+                                                                : &actions.getReference(0);
+
+            if (outgoing != nullptr)
+            {
+                setup.fromCueId = outgoing->targetCueId;
+                setup.delaySeconds = outgoing->delaySeconds;
+                setup.durationSeconds = outgoing->durationSeconds;
+                setup.curve = outgoing->curve;
+                setup.fadeGain = outgoing->fadeGain;
+                setup.targetGainDb = outgoing->targetGainDb;
+                setup.fadePan = outgoing->fadePan;
+                setup.targetPan = outgoing->targetPan;
+                setup.stopAtEnd = outgoing->stopAtEnd;
+            }
+
+            if (incoming != nullptr)
+            {
+                setup.toCueId = incoming->targetCueId;
+                setup.startGainDb = incoming->startGainDb;
+                if (outgoing == nullptr)
+                {
+                    setup.delaySeconds = incoming->delaySeconds;
+                    setup.durationSeconds = incoming->durationSeconds;
+                    setup.curve = incoming->curve;
+                    setup.fadeGain = incoming->fadeGain;
+                }
+            }
+
+            return setup;
+        }
+    };
 
     double getEffectiveDuration() const
     {

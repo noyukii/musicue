@@ -22,6 +22,7 @@ ToolbarComponent::ToolbarComponent()
         menu.addItem("Audio Cue...", [this] { if (onAddCue != nullptr) onAddCue(); });
         menu.addItem("Group Cue", [this] { if (onAddGroup != nullptr) onAddGroup(); });
         menu.addItem("Fade Cue", [this] { if (onAddFade != nullptr) onAddFade(); });
+        menu.addItem("Fade Selected...", [this] { if (onAddBulkFade != nullptr) onAddBulkFade(); });
         menu.addSeparator();
         for (const auto& type : { "Video", "MIDI", "Network", "Light", "Cart" })
             menu.addItem(juce::String(type) + " cue - not supported yet", false, false, [] {});

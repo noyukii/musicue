@@ -40,6 +40,43 @@ public:
         expectEquals(fadeInOnly.size(), 1);
         expectEquals(fadeInOnly[0].targetCueId, 7);
         expect(fadeInOnly[0].startIfStopped);
+
+        beginTest("Finds the next audio cue in line");
+        juce::Array<Cue> cues;
+        Cue audioA; audioA.id = 1; audioA.kind = Cue::Kind::audio; audioA.name = "Intro";
+        Cue group; group.id = 2; group.kind = Cue::Kind::group;
+        Cue audioB; audioB.id = 3; audioB.kind = Cue::Kind::audio; audioB.name = "Verse";
+        Cue fade; fade.id = 4; fade.kind = Cue::Kind::fade;
+        Cue audioC; audioC.id = 5; audioC.kind = Cue::Kind::audio; audioC.name = "Chorus";
+        cues.add(audioA); cues.add(group); cues.add(audioB); cues.add(fade); cues.add(audioC);
+        expectEquals(Cue::nextAudioCueId(cues, 1), 3);
+        expectEquals(Cue::nextAudioCueId(cues, 3), 5);
+        expectEquals(Cue::nextAudioCueId(cues, 5), 0);
+
+        beginTest("Fade setup round-trips a crossfade pair");
+        Cue::FadeSetup setup;
+        setup.fromCueId = 1;
+        setup.toCueId = 3;
+        setup.durationSeconds = 2.5;
+        setup.delaySeconds = 0.5;
+        setup.curve = Cue::FadeCurve::easeOut;
+        setup.targetGainDb = -24.0;
+        setup.stopAtEnd = true;
+        setup.startGainDb = -48.0;
+        const auto actions = setup.toActions(1, 3);
+        expectEquals(actions.size(), 2);
+        const auto restored = Cue::FadeSetup::fromActions(actions, Cue::FadeStopPolicy::hold);
+        expectEquals(restored.fromCueId, 1);
+        expectEquals(restored.toCueId, 3);
+        expectWithinAbsoluteError(restored.durationSeconds, 2.5, 0.0001);
+        expectWithinAbsoluteError(restored.delaySeconds, 0.5, 0.0001);
+        expectEquals(static_cast<int>(restored.curve), static_cast<int>(Cue::FadeCurve::easeOut));
+        expect(restored.stopAtEnd);
+        expectWithinAbsoluteError(restored.startGainDb, -48.0, 0.0001);
+
+        beginTest("Names fade cues from their targets");
+        expectEquals(Cue::makeFadeName(cues, 1, 3), juce::String("Crossfade to Verse"));
+        expectEquals(Cue::makeFadeName(cues, 1, 0), juce::String("Fade out Intro"));
     }
 };
 

@@ -82,6 +82,7 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
     toolbar.onAddCue = [this] { chooseAndAddCues(); };
     toolbar.onAddGroup = [this] { cueList.addGroupCue(); };
     toolbar.onAddFade = [this] { cueList.addFadeCue(); };
+    toolbar.onAddBulkFade = [this] { cueList.showBulkFadeEditor(); };
     toolbar.onPreview = [this] { cueList.previewSelected(); };
     toolbar.onStop = [this] { cueList.stopSelectedCue(); };
     toolbar.onPause = [this] { engine.setPaused(! engine.isPaused()); };
@@ -90,6 +91,7 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
     toolbar.onMasterGain = [this](float gain) { engine.setMasterGain(gain); };
 
     cueList.durationProvider = [this](const juce::File& file) { return engine.getDurationForFile(file); };
+    cueList.playheadProvider = [this](int cueId) { return engine.getCuePlayhead(cueId); };
     cueList.onPlayCue = [this](const Cue& cue)
     {
         return engine.playCue(cue, [this](int cueId) -> const Cue*
@@ -138,6 +140,8 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
     {
         return cueList.firstPlayingAudioCueId(excludeId);
     };
+    inspector.onPreviewCue = [this](int cueId) { cueList.previewCue(cueId); };
+    inspector.fadeProgressProvider = [this](int cueId) { return engine.getFadePlayhead(cueId); };
 
     inspectorToggleButton.button->onClick = [this]
     {

@@ -54,6 +54,8 @@ target_sources(MusiCue PRIVATE
     Source/CueListComponent.cpp
     Source/ToolbarComponent.cpp
     Source/InspectorComponent.cpp
+    Source/FadeEditorComponent.cpp
+    Source/BulkFadeWindow.cpp
     Source/WorkspaceFile.cpp
     Source/SettingsWindow.cpp
     Source/WorkspaceLauncherComponent.cpp

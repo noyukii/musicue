@@ -19,6 +19,8 @@ public:
     std::function<void()> onCueEdited;
     std::function<juce::String()> outputInfoProvider;
     std::function<int(int excludeCueId)> playingCueProvider;
+    std::function<void(int cueId)> onPreviewCue;
+    std::function<double(int cueId)> fadeProgressProvider;
 
 private:
     class BasicsTab;
@@ -29,6 +31,7 @@ private:
     class TrimTab;
     class ModeTab;
     class FadeTab;
+    class InspectorViewport;
 
     void rebuildTabs(bool groupSelected, bool fadeSelected);
 
@@ -40,6 +43,15 @@ private:
     std::unique_ptr<TrimTab> trimTab;
     std::unique_ptr<ModeTab> modeTab;
     std::unique_ptr<FadeTab> fadeTab;
+
+    std::unique_ptr<InspectorViewport> basicsHost;
+    std::unique_ptr<InspectorViewport> triggersHost;
+    std::unique_ptr<InspectorViewport> ioHost;
+    std::unique_ptr<InspectorViewport> timeLoopsHost;
+    std::unique_ptr<InspectorViewport> levelsHost;
+    std::unique_ptr<InspectorViewport> trimHost;
+    std::unique_ptr<InspectorViewport> modeHost;
+    std::unique_ptr<InspectorViewport> fadeHost;
 
     juce::TabbedComponent tabs;
     juce::Label emptyLabel;

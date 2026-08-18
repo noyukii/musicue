@@ -13,7 +13,7 @@ public:
     void paint(juce::Graphics& g) override;
     void resized() override;
 
-    std::function<void()> onAddCue, onAddGroup, onAddFade, onPreview, onStop, onPause, onPanic, onReset;
+    std::function<void()> onAddCue, onAddGroup, onAddFade, onAddBulkFade, onPreview, onStop, onPause, onPanic, onReset;
     std::function<void(float)> onMasterGain;
 
     float getMasterGain() const { return static_cast<float>(masterGainSlider.getValue()); }

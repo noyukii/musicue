@@ -1,4 +1,5 @@
 #include "CueListComponent.h"
+#include "BulkFadeWindow.h"
 #include <BinaryData.h>
 #include "Icons.h"
 
@@ -413,6 +414,125 @@ void CueListComponent::addCrossfadeCue(int toCueId)
     cues.insert(insertionIndexFor(cue.parentId, siblingIndexOf(cues[toIndex]) + 1), cue);
     rebuildVisibleRows(); normaliseStandby(); table.selectRow(findVisibleRow(cue.id)); notifyContentChanged();
 }
+
+void CueListComponent::previewCue(int cueId)
+{
+    const auto index = findCueIndex(cueId);
+    if (index >= 0)
+        runCue(index, false);
+}
+
+juce::Array<int> CueListComponent::selectedAudioCueIds() const
+{
+    juce::Array<int> ids;
+    for (const auto id : canonicalIds(getSelectedCueIds()))
+        if (const auto index = findCueIndex(id); index >= 0 && cues[index].isAudio())
+            ids.add(id);
+    return ids;
+}
+
+void CueListComponent::applyFadeSetup(const Cue::FadeSetup& setup, const juce::Array<int>& fromIds)
+{
+    if (fromIds.isEmpty())
+        return;
+
+    rememberUndo();
+    juce::Array<int> resolvedFrom, resolvedTo;
+    for (const auto fromId : fromIds)
+    {
+        if (findCueIndex(fromId) < 0)
+            continue;
+
+        auto toId = setup.toCueId;
+        if (setup.toNextInLine)
+            toId = Cue::nextAudioCueId(cues, fromId);
+        if (toId == fromId)
+            toId = 0;
+
+        resolvedFrom.add(fromId);
+        resolvedTo.add(toId);
+    }
+
+    auto lastFadeId = 0;
+    for (int i = 0; i < resolvedFrom.size(); ++i)
+    {
+        const auto fromId = resolvedFrom[i];
+        const auto toId = resolvedTo[i];
+        const auto fromIndex = findCueIndex(fromId);
+        if (fromIndex < 0)
+            continue;
+
+        Cue fade;
+        fade.id = nextCueId++;
+        fade.kind = Cue::Kind::fade;
+        fade.number = juce::String(cues.size() + 1);
+        fade.name = Cue::makeFadeName(cues, fromId, toId);
+        fade.parentId = cues.getReference(fromIndex).parentId;
+        fade.fadeStopPolicy = setup.stopPolicy;
+        fade.fadeActions = setup.toActions(fromId, toId);
+        const auto insertAt = insertionIndexFor(fade.parentId, siblingIndexOf(cues.getReference(fromIndex)) + 1);
+        cues.insert(insertAt, fade);
+        lastFadeId = fade.id;
+    }
+
+    rebuildVisibleRows();
+    normaliseStandby();
+    if (lastFadeId != 0)
+        table.selectRow(findVisibleRow(lastFadeId));
+    notifyContentChanged();
+}
+
+void CueListComponent::showBulkFadeEditor()
+{
+    if (! editingEnabled)
+        return;
+
+    auto audioIds = selectedAudioCueIds();
+    auto primaryId = 0;
+    if (auto* selected = getSelectedCue(); selected != nullptr && selected->isAudio())
+        primaryId = selected->id;
+    else if (! audioIds.isEmpty())
+        primaryId = audioIds[0];
+
+    if (primaryId == 0)
+        return;
+
+    if (audioIds.isEmpty())
+        audioIds.add(primaryId);
+
+    auto content = std::make_unique<BulkFadeWindow>(cues, primaryId, audioIds.size());
+    auto* window = content.get();
+    juce::Component::SafePointer<CueListComponent> self(this);
+    window->onApply = [self, window, audioIds, primaryId](bool applyAll)
+    {
+        if (self == nullptr)
+            return;
+
+        juce::Array<int> targets;
+        if (applyAll)
+            targets = audioIds;
+        else if (primaryId != 0)
+            targets.add(primaryId);
+
+        self->applyFadeSetup(window->getSetup(), targets);
+        if (auto* dialog = window->findParentComponentOfClass<juce::DialogWindow>())
+            dialog->exitModalState(1);
+    };
+
+    juce::DialogWindow::LaunchOptions options;
+    options.dialogTitle = "Add Fade";
+    options.content.setOwned(content.release());
+    options.componentToCentreAround = this;
+    options.dialogBackgroundColour = Palette::inspectorBg;
+    options.escapeKeyTriggersCloseButton = true;
+    options.useNativeTitleBar = true;
+    options.resizable = true;
+    if (auto* dialog = options.create())
+    {
+        dialog->setLookAndFeel(&getLookAndFeel());
+        dialog->enterModalState(true, nullptr, true);
+    }
+}
 void CueListComponent::setCues(juce::Array<Cue> source, int standbyId)
 {
     cues = std::move(source); nextCueId = 1;
@@ -527,6 +647,7 @@ bool CueListComponent::runCue(int index, bool advance)
         if (started)
         {
             ++cue.playCount;
+            startPlayheadUpdates();
             if (advance) advanceStandby(cue);
         }
     }
@@ -911,8 +1032,15 @@ void CueListComponent::collapseAllGroups()
     rebuildVisibleRows(); selectRowsWithIds(selection); table.repaint(); notifyContentChanged();
 }
 void CueListComponent::markCueFinished(int id) { if (auto i = findCueIndex(id); i >= 0) cues.getReference(i).playCount = juce::jmax(0, cues[i].playCount - 1); table.repaint(); notifyContentChanged(); }
-void CueListComponent::markCueStarted(int id) { if (auto i = findCueIndex(id); i >= 0) ++cues.getReference(i).playCount; table.repaint(); notifyContentChanged(); }
-void CueListComponent::markAllIdle() { for (auto& c : cues) c.playCount = 0; activePlaylistChildren.clear(); table.repaint(); notifyContentChanged(); }
+void CueListComponent::markCueStarted(int id)
+{
+    if (auto i = findCueIndex(id); i >= 0)
+        ++cues.getReference(i).playCount;
+    startPlayheadUpdates();
+    table.repaint();
+    notifyContentChanged();
+}
+void CueListComponent::markAllIdle() { for (auto& c : cues) c.playCount = 0; activePlaylistChildren.clear(); playheadTimer.stopTimer(); table.repaint(); notifyContentChanged(); }
 void CueListComponent::refreshDisplay() { rebuildVisibleRows(); table.repaint(); }
 int CueListComponent::nextSiblingId(const Cue& cue) const { bool seen = false; for (auto& other : cues) { if (other.parentId != cue.parentId) continue; if (seen) return other.id; if (other.id == cue.id) seen = true; } return 0; }
 void CueListComponent::handleAutoContinue(int id)
@@ -976,6 +1104,50 @@ juce::Colour CueListComponent::groupColour(const Cue& cue) const
         case Cue::GroupMode::startRandom: return juce::Colour(0xffaf52de);
     }
     return Palette::standbyGreen;
+}
+
+double CueListComponent::playProgressFor(const Cue& cue) const
+{
+    if (playheadProvider == nullptr)
+        return -1.0;
+
+    if (! cue.isGroup())
+        return playheadProvider(cue.id);
+
+    auto minProgress = 2.0;
+    auto anyPlaying = false;
+    for (const auto& child : cues)
+    {
+        if (child.parentId != cue.id)
+            continue;
+        const auto progress = playProgressFor(child);
+        if (progress < 0.0)
+            continue;
+        anyPlaying = true;
+        minProgress = juce::jmin(minProgress, progress);
+    }
+    return anyPlaying ? minProgress : -1.0;
+}
+
+bool CueListComponent::hasPlayingCues() const
+{
+    for (const auto& cue : cues)
+        if (cue.playCount > 0)
+            return true;
+    return false;
+}
+
+void CueListComponent::startPlayheadUpdates()
+{
+    if (! playheadTimer.isTimerRunning())
+        playheadTimer.startTimerHz(30);
+}
+
+void CueListComponent::onPlayheadTick()
+{
+    if (! hasPlayingCues())
+        playheadTimer.stopTimer();
+    table.repaint();
 }
 
 void CueListComponent::paintGroupOutline(juce::Graphics& g, int row, int width, int height) const
@@ -1075,7 +1247,30 @@ void CueListComponent::paintCell(juce::Graphics& g, int row, int column, int wid
     }
     if (column == 4) { text = c.isGroup() ? juce::String() : (c.isFade() ? juce::String(c.fadeActions.size()) + (c.fadeActions.size() == 1 ? " target" : " targets") : (c.target.isNotEmpty() ? c.target : c.file.getFileName())); colour = Palette::textDim; }
     if (column == 5) { text = formatTime(c.preWait); just = juce::Justification::centredRight; }
-    if (column == 6) { text = formatTime(c.getEffectiveDuration()); just = juce::Justification::centredRight; }
+    if (column == 6)
+    {
+        const auto duration = c.getEffectiveDuration();
+        const auto progress = playProgressFor(c);
+        text = formatTime(duration);
+        just = juce::Justification::centredRight;
+
+        if (progress >= 0.0)
+        {
+            auto bounds = juce::Rectangle<float>(1.0f, 3.0f, (float) width - 2.0f, (float) height - 6.0f);
+            juce::Path clip;
+            clip.addRoundedRectangle(bounds, 2.5f);
+            g.saveState();
+            g.reduceClipRegion(clip);
+            g.setColour(Palette::standbyGreen.withAlpha(0.42f));
+            g.fillRect(bounds.withWidth(juce::jmax(2.0f, bounds.getWidth() * (float) progress)));
+            g.restoreState();
+            g.setColour(Palette::standbyGreen);
+            g.drawRoundedRectangle(bounds, 2.5f, 1.2f);
+            text = formatTime(juce::jmax(0.0, duration * (1.0 - progress)));
+            colour = juce::Colours::white;
+            just = juce::Justification::centred;
+        }
+    }
     if (column == 7) { text = formatTime(c.postWait); just = juce::Justification::centredRight; }
     g.setColour(colour); g.setFont(juce::Font(juce::FontOptions().withHeight(13.f))); g.drawText(text, 6, 0, width - 12, height, just, true);
 }
@@ -1471,6 +1666,9 @@ void CueListComponent::showCueMenu(juce::Point<int> p)
     menu.addItem("Preview", [this] { previewSelected(); });
     menu.addItem("Crossfade to This Song", editingEnabled && singleAudioId != 0, false,
                  [this, singleAudioId] { addCrossfadeCue(singleAudioId); });
+    const auto audioCount = selectedAudioCueIds().size();
+    menu.addItem("Add Fade...", editingEnabled && audioCount > 0, false,
+                 [this] { showBulkFadeEditor(); });
     menu.addSeparator();
     menu.addItem("Group Selected Cues", editingEnabled && ! roots.isEmpty(), false, [this] { groupSelectedCue(); });
     menu.addItem("Ungroup", editingEnabled && anyGroup, false, [this] { ungroupSelectedCue(); });
