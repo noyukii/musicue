@@ -624,12 +624,13 @@ void MainComponent::addRecentWorkspace(const juce::File& file)
 
 void MainComponent::checkForUpdates()
 {
-    const auto skippedVersion = properties.getValue("skippedUpdateVersion");
-
     updateChecker.checkForUpdates(juce::JUCEApplication::getInstance()->getApplicationVersion(),
-        [safeThis = juce::Component::SafePointer<MainComponent>(this), skippedVersion](UpdateChecker::Result result)
+        [safeThis = juce::Component::SafePointer<MainComponent>(this)](UpdateChecker::Result result)
         {
-            if (safeThis == nullptr || ! result.updateAvailable || result.latestVersion == skippedVersion)
+            if (safeThis == nullptr || ! result.updateAvailable)
+                return;
+
+            if (result.latestVersion == safeThis->properties.getValue("skippedUpdateVersion"))
                 return;
 
             safeThis->showUpdatePopup(result.latestVersion);
@@ -668,10 +669,12 @@ void MainComponent::showUpdatePopup(const juce::String& version)
 
             safeThis->updatePopupShowing = false;
 
+            // Three-button JUCE alerts return 1, 2, 0 — not 1, 2, 3.
             if (result == 1)
                 juce::URL("https://noyukii.github.io/musicue").launchInDefaultBrowser();
-            else if (result == 3)
+            else if (result == 0)
             {
+                safeThis->stopTimer();
                 safeThis->properties.setValue("skippedUpdateVersion", version);
                 safeThis->properties.saveIfNeeded();
             }
