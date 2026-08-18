@@ -1,5 +1,6 @@
 #include "SettingsWindow.h"
 #include "Palette.h"
+#include <vector>
 
 namespace
 {
@@ -162,14 +163,19 @@ namespace
 
             setupLabel(gainLabel, "Master gain:");
             gainSlider.setSliderStyle(juce::Slider::LinearHorizontal);
-            gainSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 50, 22);
-            gainSlider.setRange(0.0, 1.0, 0.01);
-            gainSlider.setValue(settings.masterGain, juce::dontSendNotification);
-            gainSlider.setColour(juce::Slider::trackColourId, juce::Colour(0xff777777));
+            gainSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 70, 22);
+            gainSlider.setTextValueSuffix(" dB");
+            gainSlider.setRange(-60.0, 0.0, 0.1);
+            gainSlider.setDoubleClickReturnValue(true, 0.0);
+            gainSlider.setSliderSnapsToMousePosition(false);
+            gainSlider.setValue(juce::Decibels::gainToDecibels(settings.masterGain, -60.0f),
+                                juce::dontSendNotification);
+            gainSlider.setColour(juce::Slider::trackColourId, Palette::textDim.brighter(0.12f));
             gainSlider.setColour(juce::Slider::thumbColourId, Palette::textPrimary);
             gainSlider.onValueChange = [this]
             {
-                settings.masterGain = static_cast<float>(gainSlider.getValue());
+                settings.masterGain = juce::Decibels::decibelsToGain(
+                    static_cast<float>(gainSlider.getValue()), -60.0f);
                 commit();
             };
             addAndMakeVisible(gainSlider);
@@ -216,24 +222,283 @@ namespace
         juce::Slider gainSlider;
     };
 
+    class ShortcutRow : public juce::Component
+    {
+    public:
+        ShortcutRow(ShortcutBindings& map, const ShortcutInfo& info, std::function<void()> changed)
+            : bindings(map), id(info.id), onChanged(std::move(changed))
+        {
+            name.setText(info.name, juce::dontSendNotification);
+
+            name.setJustificationType(juce::Justification::centredLeft);
+            name.setColour(juce::Label::textColourId, Palette::textPrimary);
+            name.setFont(juce::Font(juce::FontOptions().withHeight(13.0f)));
+            addAndMakeVisible(name);
+
+            keyButton.setWantsKeyboardFocus(false);
+            keyButton.setMouseClickGrabsKeyboardFocus(false);
+            keyButton.onClick = [this] { toggleCapture(); };
+            addAndMakeVisible(keyButton);
+
+            clearButton.setButtonText("Clear");
+            clearButton.setWantsKeyboardFocus(false);
+            clearButton.setMouseClickGrabsKeyboardFocus(false);
+            clearButton.onClick = [this]
+            {
+                stopCapture();
+                bindings.clear(id);
+                refresh();
+                notifyChanged();
+            };
+            addAndMakeVisible(clearButton);
+
+            setWantsKeyboardFocus(true);
+            refresh();
+        }
+
+        void refresh()
+        {
+            capturing = false;
+            const auto text = bindings.getDisplayString(id);
+            keyButton.setButtonText(text.isNotEmpty() ? text : "None");
+        }
+
+        void stopCapture()
+        {
+            if (! capturing)
+                return;
+
+            capturing = false;
+            refresh();
+        }
+
+        bool keyPressed(const juce::KeyPress& key) override
+        {
+            if (! capturing)
+                return false;
+
+            if (! key.isValid() || key.getKeyCode() == 0)
+                return true;
+
+            capturing = false;
+
+            if (const auto* conflict = bindings.findConflict(key, id))
+            {
+                const auto message = ShortcutBindings::describe(key) + " is already assigned to \""
+                    + conflict->name + "\". Reassign it?";
+                juce::AlertWindow::showAsync(
+                    juce::MessageBoxOptions()
+                        .withIconType(juce::MessageBoxIconType::QuestionIcon)
+                        .withTitle("Shortcut already in use")
+                        .withMessage(message)
+                        .withButton("Reassign")
+                        .withButton("Cancel")
+                        .withAssociatedComponent(this),
+                    [safeThis = juce::Component::SafePointer<ShortcutRow>(this), key](int result)
+                    {
+                        if (safeThis == nullptr)
+                            return;
+
+                        if (result == 1)
+                        {
+                            safeThis->bindings.assign(safeThis->id, key);
+                            safeThis->notifyChanged();
+                        }
+
+                        safeThis->refresh();
+                    });
+                return true;
+            }
+
+            bindings.assign(id, key);
+            refresh();
+            notifyChanged();
+            return true;
+        }
+
+        void focusLost(FocusChangeType) override
+        {
+            if (capturing)
+                stopCapture();
+        }
+
+        void resized() override
+        {
+            auto r = getLocalBounds();
+            clearButton.setBounds(r.removeFromRight(64));
+            r.removeFromRight(8);
+            keyButton.setBounds(r.removeFromRight(200));
+            r.removeFromRight(12);
+            name.setBounds(r);
+        }
+
+        std::function<void(ShortcutRow*)> onCaptureStarted;
+
+    private:
+        void toggleCapture()
+        {
+            if (capturing)
+            {
+                stopCapture();
+                return;
+            }
+
+            if (onCaptureStarted != nullptr)
+                onCaptureStarted(this);
+
+            capturing = true;
+            keyButton.setButtonText("Press a key...");
+            grabKeyboardFocus();
+        }
+
+        void notifyChanged()
+        {
+            if (onChanged != nullptr)
+                onChanged();
+        }
+
+        ShortcutBindings& bindings;
+        ShortcutId id;
+        std::function<void()> onChanged;
+        juce::Label name;
+        juce::TextButton keyButton, clearButton;
+        bool capturing = false;
+    };
+
+    class ShortcutList : public juce::Component
+    {
+    public:
+        ShortcutList(ShortcutBindings& map, std::function<void()> changed)
+        {
+            juce::String lastCategory;
+
+            for (const auto& info : ShortcutBindings::catalog())
+            {
+                if (lastCategory != info.category)
+                {
+                    lastCategory = info.category;
+                    auto header = std::make_unique<juce::Label>();
+                    header->setText(info.category, juce::dontSendNotification);
+                    header->setFont(juce::Font(juce::FontOptions().withHeight(14.0f)));
+                    header->setColour(juce::Label::textColourId, Palette::textPrimary);
+                    addAndMakeVisible(*header);
+                    headers.push_back(std::move(header));
+                }
+
+                auto row = std::make_unique<ShortcutRow>(map, info, changed);
+                row->onCaptureStarted = [this](ShortcutRow* active)
+                {
+                    for (auto& other : rows)
+                        if (other.get() != active)
+                            other->stopCapture();
+                };
+                addAndMakeVisible(*row);
+                rows.push_back(std::move(row));
+            }
+        }
+
+        int preferredHeight() const
+        {
+            return static_cast<int>(headers.size()) * 28
+                 + static_cast<int>(rows.size()) * 34
+                 + 8;
+        }
+
+        void refresh()
+        {
+            for (auto& row : rows)
+                row->refresh();
+        }
+
+        void resized() override
+        {
+            auto r = getLocalBounds();
+            size_t headerIndex = 0, rowIndex = 0;
+            juce::String lastCategory;
+
+            for (const auto& info : ShortcutBindings::catalog())
+            {
+                if (lastCategory != info.category)
+                {
+                    lastCategory = info.category;
+                    headers[headerIndex++]->setBounds(r.removeFromTop(24));
+                    r.removeFromTop(4);
+                }
+
+                rows[rowIndex++]->setBounds(r.removeFromTop(30));
+                r.removeFromTop(4);
+            }
+        }
+
+    private:
+        std::vector<std::unique_ptr<juce::Label>> headers;
+        std::vector<std::unique_ptr<ShortcutRow>> rows;
+    };
+
     class ControlsTab : public juce::Component
     {
     public:
-        ControlsTab()
+        ControlsTab(AppSettings& s, juce::PropertiesFile& p, std::function<void()> notify)
+            : settings(s), props(p), onChanged(std::move(notify)),
+              list(settings.shortcuts, [this] { commit(); })
         {
-            title.setText("Keyboard controls", juce::dontSendNotification);
-            title.setFont(juce::Font(juce::FontOptions().withHeight(17.0f)));
-            title.setColour(juce::Label::textColourId, Palette::textPrimary);
-            detail.setText("Space     GO standby cue\nEscape    Panic\nCommand-S    Save workspace\nCommand-P    Preview selected cue\nCue hotkeys trigger their assigned cue independently.", juce::dontSendNotification);
-            detail.setFont(juce::Font(juce::FontOptions().withHeight(13.0f)));
-            detail.setColour(juce::Label::textColourId, Palette::textDim);
-            detail.setJustificationType(juce::Justification::topLeft);
-            addAndMakeVisible(title); addAndMakeVisible(detail);
+            help.setText("Click a shortcut to change it. Click again or elsewhere to cancel.\n"
+                         "Cue hotkeys in the inspector fire independently and take priority.",
+                         juce::dontSendNotification);
+            help.setFont(juce::Font(juce::FontOptions().withHeight(13.0f)));
+            help.setColour(juce::Label::textColourId, Palette::textDim);
+            help.setJustificationType(juce::Justification::topLeft);
+            addAndMakeVisible(help);
+
+            resetButton.setButtonText("Reset to Defaults");
+            resetButton.setWantsKeyboardFocus(false);
+            resetButton.onClick = [this]
+            {
+                settings.shortcuts.resetToDefaults();
+                list.refresh();
+                commit();
+            };
+            addAndMakeVisible(resetButton);
+
+            viewport.setViewedComponent(&list, false);
+            viewport.setScrollBarsShown(true, false);
+            addAndMakeVisible(viewport);
         }
-        void paint(juce::Graphics& g) override { g.fillAll(Palette::panelBg); }
-        void resized() override { auto r = getLocalBounds().reduced(28, 24); title.setBounds(r.removeFromTop(28)); r.removeFromTop(14); detail.setBounds(r); }
+
+        void paint(juce::Graphics& g) override
+        {
+            g.fillAll(Palette::panelBg);
+        }
+
+        void resized() override
+        {
+            auto r = getLocalBounds().reduced(28, 20);
+            help.setBounds(r.removeFromTop(36));
+            r.removeFromTop(8);
+            resetButton.setBounds(r.removeFromTop(28).removeFromLeft(160));
+            r.removeFromTop(12);
+            viewport.setBounds(r);
+            list.setSize(juce::jmax(1, viewport.getMaximumVisibleWidth()),
+                         juce::jmax(viewport.getHeight(), list.preferredHeight()));
+        }
+
     private:
-        juce::Label title, detail;
+        void commit()
+        {
+            settings.save(props);
+            list.refresh();
+
+            if (onChanged != nullptr)
+                onChanged();
+        }
+
+        AppSettings& settings;
+        juce::PropertiesFile& props;
+        std::function<void()> onChanged;
+        juce::Label help;
+        juce::TextButton resetButton;
+        ShortcutList list;
+        juce::Viewport viewport;
     };
 
     class SettingsComponent : public juce::Component
@@ -246,8 +511,8 @@ namespace
             : tabs(juce::TabbedButtonBar::TabsAtTop)
         {
             audioTab = std::make_unique<AudioTab>(deviceManager);
-            playbackTab = std::make_unique<PlaybackTab>(settings, props, std::move(notify));
-            controlsTab = std::make_unique<ControlsTab>();
+            playbackTab = std::make_unique<PlaybackTab>(settings, props, notify);
+            controlsTab = std::make_unique<ControlsTab>(settings, props, std::move(notify));
 
             tabs.setTabBarDepth(40);
             tabs.addTab("General", Palette::panelBg, playbackTab.get(), false);
@@ -284,8 +549,9 @@ SettingsWindow::SettingsWindow(juce::AudioDeviceManager& deviceManager,
     setLookAndFeel(&lookAndFeel);
     setContentOwned(new SettingsComponent(deviceManager, settings, props,
                                           std::move(onSettingsChanged)), true);
-    setResizable(false, false);
-    centreWithSize(560, 360);
+    setResizable(true, true);
+    setResizeLimits(560, 420, 920, 900);
+    centreWithSize(640, 540);
 }
 
 SettingsWindow::~SettingsWindow()

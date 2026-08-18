@@ -184,10 +184,8 @@ FadeEditorComponent::FadeEditorComponent(Mode editorMode)
         addAndMakeVisible(*editor);
     }
 
-    curveBox.addItem("Linear", 1);
-    curveBox.addItem("Ease in", 2);
-    curveBox.addItem("Ease out", 3);
-    curveBox.addItem("S-curve", 4);
+    for (int i = 0; i < Cue::numFadeCurves; ++i)
+        curveBox.addItem(Cue::fadeCurveName(static_cast<Cue::FadeCurve>(i)), i + 1);
     curveBox.onChange = [this] { applyFields(); };
     stopPolicyBox.addItem("Hold targets", 1);
     stopPolicyBox.addItem("Stop targets", 2);
@@ -377,7 +375,6 @@ void FadeEditorComponent::configureSlider(juce::Slider& slider, double minimum, 
     slider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 58, 22);
     slider.setRange(minimum, maximum, interval);
     slider.setTextValueSuffix(suffix);
-    slider.setColour(juce::Slider::trackColourId, juce::Colour(0xff777777));
     slider.setColour(juce::Slider::thumbColourId, Palette::textPrimary);
     slider.onValueChange = [this] { applyFields(); };
     addAndMakeVisible(slider);
@@ -475,7 +472,7 @@ void FadeEditorComponent::applyFields(bool notifyIncoming)
     const auto previousIncoming = currentSetup.toCueId;
     currentSetup.delaySeconds = juce::jmax(0.0, parseFadeTime(delayEditor.getText()));
     currentSetup.durationSeconds = juce::jmax(0.0, parseFadeTime(durationEditor.getText()));
-    currentSetup.curve = static_cast<Cue::FadeCurve>(juce::jlimit(0, 3, curveBox.getSelectedId() - 1));
+    currentSetup.curve = Cue::fadeCurveFromInt(curveBox.getSelectedId() - 1);
     currentSetup.stopPolicy = static_cast<Cue::FadeStopPolicy>(juce::jlimit(
         0, 1, stopPolicyBox.getSelectedId() - 1));
     currentSetup.fadeGain = gainToggle.getToggleState();

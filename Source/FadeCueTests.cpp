@@ -77,6 +77,34 @@ public:
         beginTest("Names fade cues from their targets");
         expectEquals(Cue::makeFadeName(cues, 1, 3), juce::String("Crossfade to Verse"));
         expectEquals(Cue::makeFadeName(cues, 1, 0), juce::String("Fade out Intro"));
+
+        beginTest("Fade curves start at 0, end at 1, and stay ordered");
+        for (int i = 0; i < Cue::numFadeCurves; ++i)
+        {
+            const auto curve = static_cast<Cue::FadeCurve>(i);
+            expectWithinAbsoluteError(Cue::applyFadeCurve(curve, 0.0f), 0.0f, 0.0001f);
+            expectWithinAbsoluteError(Cue::applyFadeCurve(curve, 1.0f), 1.0f, 0.0001f);
+
+            auto previous = -0.0001f;
+            for (int step = 0; step <= 32; ++step)
+            {
+                const auto value = Cue::applyFadeCurve(curve, static_cast<float>(step) / 32.0f);
+                expect(value + 0.0001f >= previous);
+                previous = value;
+            }
+        }
+
+        beginTest("Distinct fade curve shapes");
+        expectWithinAbsoluteError(Cue::applyFadeCurve(Cue::FadeCurve::linear, 0.5f), 0.5f, 0.0001f);
+        expect(Cue::applyFadeCurve(Cue::FadeCurve::easeIn, 0.5f) < 0.5f);
+        expect(Cue::applyFadeCurve(Cue::FadeCurve::easeOut, 0.5f) > 0.5f);
+        expect(Cue::applyFadeCurve(Cue::FadeCurve::exponential, 0.5f)
+               < Cue::applyFadeCurve(Cue::FadeCurve::easeIn, 0.5f));
+        expect(Cue::applyFadeCurve(Cue::FadeCurve::logarithmic, 0.5f)
+               > Cue::applyFadeCurve(Cue::FadeCurve::easeOut, 0.5f));
+        expect(Cue::applyFadeCurve(Cue::FadeCurve::inverseSCurve, 0.25f)
+               > Cue::applyFadeCurve(Cue::FadeCurve::sCurve, 0.25f));
+        expect(Cue::applyFadeCurve(Cue::FadeCurve::equalPower, 0.5f) > 0.7f);
     }
 };
 
@@ -111,7 +139,7 @@ public:
         action.startIfStopped = true;
         action.startGainDb = -60.0;
         action.stopAtEnd = true;
-        action.curve = Cue::FadeCurve::sCurve;
+        action.curve = Cue::FadeCurve::equalPower;
         fade.fadeActions.add(action);
         data.cues.add(fade);
 
@@ -134,7 +162,7 @@ public:
                 expect(loadedAction.fadePan);
                 expect(loadedAction.startIfStopped);
                 expect(loadedAction.stopAtEnd);
-                expectEquals(static_cast<int>(loadedAction.curve), static_cast<int>(Cue::FadeCurve::sCurve));
+                expectEquals(static_cast<int>(loadedAction.curve), static_cast<int>(Cue::FadeCurve::equalPower));
             }
         }
 

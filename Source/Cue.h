@@ -1,12 +1,23 @@
 #pragma once
 
+#include <cmath>
 #include <juce_core/juce_core.h>
 
 struct Cue
 {
     enum class Kind { audio, group, fade };
     enum class GroupMode { timeline, playlist, startFirstAndEnter, startFirst, startRandom };
-    enum class FadeCurve { linear, easeIn, easeOut, sCurve };
+    enum class FadeCurve
+    {
+        linear = 0,
+        easeIn,
+        easeOut,
+        sCurve,
+        inverseSCurve,
+        exponential,
+        logarithmic,
+        equalPower
+    };
     enum class FadeStopPolicy { hold, stopTargets };
 
     struct FadeAction
@@ -58,15 +69,64 @@ struct Cue
     bool isAudio() const { return kind == Kind::audio; }
     bool isFade() const { return kind == Kind::fade; }
 
+    static constexpr int numFadeCurves = static_cast<int>(FadeCurve::equalPower) + 1;
+
+    static FadeCurve fadeCurveFromInt(int value)
+    {
+        return static_cast<FadeCurve>(juce::jlimit(0, numFadeCurves - 1, value));
+    }
+
+    static juce::String fadeCurveName(FadeCurve curve)
+    {
+        switch (curve)
+        {
+            case FadeCurve::easeIn:        return "Ease in";
+            case FadeCurve::easeOut:       return "Ease out";
+            case FadeCurve::sCurve:        return "S-curve";
+            case FadeCurve::inverseSCurve: return "Inverse S-curve";
+            case FadeCurve::exponential:   return "Exponential";
+            case FadeCurve::logarithmic:   return "Logarithmic";
+            case FadeCurve::equalPower:    return "Equal power";
+            case FadeCurve::linear:        break;
+        }
+        return "Linear";
+    }
+
     static float applyFadeCurve(FadeCurve curve, float position)
     {
         const auto t = juce::jlimit(0.0f, 1.0f, position);
         switch (curve)
         {
-            case FadeCurve::easeIn: return t * t;
-            case FadeCurve::easeOut: return 1.0f - (1.0f - t) * (1.0f - t);
-            case FadeCurve::sCurve: return t * t * (3.0f - 2.0f * t);
-            case FadeCurve::linear: break;
+            case FadeCurve::easeIn:
+                return t * t;
+            case FadeCurve::easeOut:
+                return 1.0f - (1.0f - t) * (1.0f - t);
+            case FadeCurve::sCurve:
+                return t * t * (3.0f - 2.0f * t);
+            case FadeCurve::inverseSCurve:
+                if (t < 0.5f)
+                {
+                    const auto u = t * 2.0f;
+                    return 0.5f * (1.0f - (1.0f - u) * (1.0f - u));
+                }
+                {
+                    const auto u = t * 2.0f - 1.0f;
+                    return 0.5f + 0.5f * u * u;
+                }
+            case FadeCurve::exponential:
+            {
+                constexpr auto k = 4.0f;
+                return (std::exp(k * t) - 1.0f) / (std::exp(k) - 1.0f);
+            }
+            case FadeCurve::logarithmic:
+            {
+                constexpr auto k = 4.0f;
+                return std::log1p(t * (std::exp(k) - 1.0f)) / k;
+            }
+            case FadeCurve::equalPower:
+                return std::sin(t * juce::MathConstants<float>::halfPi);
+            case FadeCurve::linear:
+                break;
         }
         return t;
     }

@@ -53,6 +53,9 @@ private:
     bool writeWorkspaceTo(const juce::File& target);
     void updateWindowTitle();
     void applySettings();
+    void showSettings();
+    void toggleInspectorVisibility();
+    bool performShortcut(ShortcutId id);
     void changeListenerCallback(juce::ChangeBroadcaster* source) override;
     void checkForUpdates();
     void showUpdatePopup(const juce::String& version);

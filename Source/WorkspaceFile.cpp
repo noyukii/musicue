@@ -203,8 +203,7 @@ bool WorkspaceFile::load(const juce::File& sourceFile, WorkspaceData& data,
                     action.startIfStopped = actionXml->getIntAttribute("startIfStopped", 0) != 0;
                     action.startGainDb = juce::jlimit(-60.0, 6.0, actionXml->getDoubleAttribute("startGainDb", -60.0));
                     action.stopAtEnd = actionXml->getIntAttribute("stopAtEnd", 0) != 0;
-                    action.curve = static_cast<Cue::FadeCurve>(juce::jlimit(
-                        0, 3, actionXml->getIntAttribute("curve", 0)));
+                    action.curve = Cue::fadeCurveFromInt(actionXml->getIntAttribute("curve", 0));
                     if (action.targetCueId > 0 && (action.fadeGain || action.fadePan))
                         cue.fadeActions.add(action);
                 }

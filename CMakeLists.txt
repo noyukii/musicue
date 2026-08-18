@@ -44,6 +44,8 @@ juce_add_binary_data(MusiCueAssets
     Assets/icons/workspace_open.svg
     Assets/icons/workspace_save.svg
     Assets/icons/workspace_save_as.svg
+    Assets/icons/volume_up.svg
+    Assets/icons/volume_off.svg
     Assets/appicon/appicon_musicue.png
 )
 
@@ -58,6 +60,7 @@ target_sources(MusiCue PRIVATE
     Source/BulkFadeWindow.cpp
     Source/WorkspaceFile.cpp
     Source/SettingsWindow.cpp
+    Source/Shortcuts.cpp
     Source/WorkspaceLauncherComponent.cpp
     Source/UpdateChecker.cpp
 )

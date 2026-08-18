@@ -15,6 +15,9 @@ public:
         setColour(juce::PopupMenu::highlightedTextColourId, juce::Colours::white);
         setColour(juce::TextEditor::outlineColourId, juce::Colours::transparentBlack);
         setColour(juce::TextEditor::focusedOutlineColourId, Palette::standbyGreen);
+        setColour(juce::Slider::backgroundColourId, Palette::fieldBg);
+        setColour(juce::Slider::trackColourId, Palette::standbyGreen.darker(0.1f));
+        setColour(juce::Slider::thumbColourId, Palette::textPrimary);
     }
 
     juce::Font getTextButtonFont(juce::TextButton&, int height) override
@@ -133,6 +136,8 @@ public:
         label.setFont(getComboBoxFont(box));
     }
 
+    int getSliderThumbRadius(juce::Slider&) override { return 7; }
+
     void drawLinearSlider(juce::Graphics& g, int x, int y, int width, int height,
                           float sliderPos, float, float,
                           juce::Slider::SliderStyle style, juce::Slider& slider) override
@@ -146,14 +151,46 @@ public:
         }
 
         const auto centreY = static_cast<float>(y) + static_cast<float>(height) * 0.5f;
-        const auto startX = static_cast<float>(x + 7);
-        const auto endX = static_cast<float>(x + width - 7);
-        g.setColour(Palette::fieldBg);
-        g.drawLine(startX, centreY, endX, centreY, 5.0f);
-        g.setColour(Palette::standbyGreen.darker(0.1f));
-        g.drawLine(startX, centreY, sliderPos, centreY, 5.0f);
-        g.setColour(slider.isEnabled() ? Palette::textPrimary : Palette::textDim);
-        g.fillEllipse(sliderPos - 6.5f, centreY - 6.5f, 13.0f, 13.0f);
+        const auto trackH = 7.0f;
+        auto track = juce::Rectangle<float>(static_cast<float>(x), centreY - trackH * 0.5f,
+                                            static_cast<float>(width), trackH);
+        track.removeFromLeft(7.0f);
+        track.removeFromRight(7.0f);
+
+        auto trackColour = slider.findColour(juce::Slider::backgroundColourId);
+        auto fillColour = slider.findColour(juce::Slider::trackColourId);
+        auto thumbColour = slider.findColour(juce::Slider::thumbColourId);
+        if (! slider.isEnabled())
+        {
+            trackColour = trackColour.withMultipliedAlpha(0.45f);
+            fillColour = fillColour.withMultipliedAlpha(0.4f);
+            thumbColour = thumbColour.withMultipliedAlpha(0.4f);
+        }
+        else if (slider.isMouseButtonDown())
+        {
+            fillColour = fillColour.brighter(0.12f);
+            thumbColour = thumbColour.brighter(0.08f);
+        }
+        else if (slider.isMouseOverOrDragging())
+        {
+            fillColour = fillColour.brighter(0.06f);
+        }
+
+        g.setColour(trackColour);
+        g.fillRoundedRectangle(track, trackH * 0.5f);
+
+        const auto fillRight = juce::jlimit(track.getX(), track.getRight(), sliderPos);
+        const auto fillW = juce::jmax(0.0f, fillRight - track.getX());
+        if (fillW > 0.5f)
+        {
+            g.setColour(fillColour);
+            g.fillRoundedRectangle(track.withWidth(juce::jmax(trackH, fillW)), trackH * 0.5f);
+        }
+
+        const auto thumbR = slider.isMouseButtonDown() ? 6.4f : 5.6f;
+        const auto thumbX = juce::jlimit(track.getX() + thumbR, track.getRight() - thumbR, sliderPos);
+        g.setColour(thumbColour);
+        g.fillEllipse(thumbX - thumbR, centreY - thumbR, thumbR * 2.0f, thumbR * 2.0f);
     }
 
     juce::Label* createSliderTextBox(juce::Slider& slider) override

@@ -834,7 +834,6 @@ public:
         gainSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60, 22);
         gainSlider.setTextValueSuffix(" dB");
         gainSlider.setRange(-60.0, 6.0, 0.1);
-        gainSlider.setColour(juce::Slider::trackColourId, juce::Colour(0xff777777));
         gainSlider.setColour(juce::Slider::thumbColourId, Palette::textPrimary);
         gainSlider.onValueChange = [this]
         {
@@ -852,7 +851,6 @@ public:
         panSlider.setSliderStyle(juce::Slider::LinearHorizontal);
         panSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 60, 22);
         panSlider.setRange(-1.0, 1.0, 0.01);
-        panSlider.setColour(juce::Slider::trackColourId, juce::Colour(0xff777777));
         panSlider.setColour(juce::Slider::thumbColourId, Palette::textPrimary);
         panSlider.onValueChange = [this]
         {

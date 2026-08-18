@@ -53,16 +53,7 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
     launcher.onOpenWorkspace = [this] { openWorkspace(); };
     launcher.onOpenRecent = [this](const juce::File& file) { openWorkspace(file); };
 
-    settingsButton.button->onClick = [this]
-    {
-        if (settingsWindow == nullptr)
-            settingsWindow = std::make_unique<SettingsWindow>(engine.getDeviceManager(), settings,
-                                                              properties,
-                                                              [this] { applySettings(); });
-
-        settingsWindow->setVisible(true);
-        settingsWindow->toFront(true);
-    };
+    settingsButton.button->onClick = [this] { showSettings(); };
 
     goButton.setTooltip("GO (Space)");
 
@@ -145,14 +136,7 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
     inspector.onPreviewCue = [this](int cueId) { cueList.previewCue(cueId); };
     inspector.fadeProgressProvider = [this](int cueId) { return engine.getFadePlayhead(cueId); };
 
-    inspectorToggleButton.button->onClick = [this]
-    {
-        inspectorVisible = ! inspectorVisible;
-        inspector.setVisible(inspectorVisible);
-        inspectorResizer->setVisible(inspectorVisible);
-        inspector.setCue(inspectorVisible ? cueList.getSelectedCue() : nullptr);
-        resized();
-    };
+    inspectorToggleButton.button->onClick = [this] { toggleInspectorVisibility(); };
 
     updateStatusDisplays();
     applySettings();
@@ -234,9 +218,78 @@ void MainComponent::requestWorkspaceClose(std::function<void()> onConfirmed)
 void MainComponent::applySettings()
 {
     toolbar.setMasterGain(settings.masterGain);
-    engine.setMasterGain(settings.masterGain);
+    engine.setMasterGain(toolbar.getAppliedMasterGain());
     cueList.setStandbyLinked(settings.standbyLinked);
     cueList.setDefaultContinueMode(settings.defaultContinueMode);
+    toolbar.updateTooltips(settings.shortcuts);
+    goButton.setTooltip("GO" + settings.shortcuts.tooltipSuffix(ShortcutId::go));
+    openWorkspaceButton.button->setTooltip("Open workspace" + settings.shortcuts.tooltipSuffix(ShortcutId::open));
+    saveWorkspaceButton.button->setTooltip("Save workspace" + settings.shortcuts.tooltipSuffix(ShortcutId::save));
+    saveAsWorkspaceButton.button->setTooltip("Save workspace as" + settings.shortcuts.tooltipSuffix(ShortcutId::saveAs));
+    inspectorToggleButton.button->setTooltip("Show/hide inspector" + settings.shortcuts.tooltipSuffix(ShortcutId::toggleInspector));
+    settingsButton.button->setTooltip("Workspace settings" + settings.shortcuts.tooltipSuffix(ShortcutId::openSettings));
+}
+
+void MainComponent::showSettings()
+{
+    if (settingsWindow == nullptr)
+        settingsWindow = std::make_unique<SettingsWindow>(engine.getDeviceManager(), settings,
+                                                          properties,
+                                                          [this] { applySettings(); });
+
+    settingsWindow->setVisible(true);
+    settingsWindow->toFront(true);
+}
+
+void MainComponent::toggleInspectorVisibility()
+{
+    if (showMode)
+        return;
+
+    inspectorVisible = ! inspectorVisible;
+    inspector.setVisible(inspectorVisible);
+    inspectorResizer->setVisible(inspectorVisible);
+    inspector.setCue(inspectorVisible ? cueList.getSelectedCue() : nullptr);
+    resized();
+}
+
+bool MainComponent::performShortcut(ShortcutId id)
+{
+    switch (id)
+    {
+        case ShortcutId::go:              triggerGo(); return true;
+        case ShortcutId::panic:           stopAllCues(); return true;
+        case ShortcutId::preview:         cueList.previewSelected(); return true;
+        case ShortcutId::stopSelected:    cueList.stopSelectedCue(); return true;
+        case ShortcutId::pause:           engine.setPaused(! engine.isPaused()); return true;
+        case ShortcutId::resetStandby:    cueList.resetStandby(); return true;
+        case ShortcutId::undo:            cueList.undo(); return true;
+        case ShortcutId::deleteSelected:  cueList.deleteSelectedCue(); return true;
+        case ShortcutId::duplicate:       cueList.duplicateSelectedCue(); return true;
+        case ShortcutId::copy:            cueList.copySelectedCue(); return true;
+        case ShortcutId::paste:           cueList.pasteCues(); return true;
+        case ShortcutId::indent:          cueList.indentSelectedCue(); return true;
+        case ShortcutId::outdent:         cueList.outdentSelectedCue(); return true;
+        case ShortcutId::moveCueUp:       cueList.moveSelectedCue(-1); return true;
+        case ShortcutId::moveCueDown:     cueList.moveSelectedCue(1); return true;
+        case ShortcutId::groupSelected:   cueList.groupSelectedCue(); return true;
+        case ShortcutId::ungroupSelected: cueList.ungroupSelectedCue(); return true;
+        case ShortcutId::selectPrevious:  cueList.selectAdjacentCue(-1); return true;
+        case ShortcutId::selectNext:      cueList.selectAdjacentCue(1); return true;
+        case ShortcutId::collapseGroup:   cueList.collapseSelectedGroup(); return true;
+        case ShortcutId::expandGroup:     cueList.expandSelectedGroup(); return true;
+        case ShortcutId::open:            openWorkspace(); return true;
+        case ShortcutId::save:            saveWorkspace(); return true;
+        case ShortcutId::saveAs:          saveWorkspaceAs(); return true;
+        case ShortcutId::toggleInspector: toggleInspectorVisibility(); return true;
+        case ShortcutId::toggleShowMode:  setShowMode(! showMode); return true;
+        case ShortcutId::openSettings:    showSettings(); return true;
+        case ShortcutId::addAudioCue:     chooseAndAddCues(); return true;
+        case ShortcutId::addGroupCue:     cueList.addGroupCue(); return true;
+        case ShortcutId::addFadeCue:      cueList.addFadeCue(); return true;
+    }
+
+    return false;
 }
 
 void MainComponent::changeListenerCallback(juce::ChangeBroadcaster*)
@@ -305,61 +358,19 @@ bool MainComponent::keyPressed(const juce::KeyPress& key)
     if (launcherVisible)
         return false;
 
-    if (cueList.triggerHotkey(key))
+    const auto* focused = juce::Component::getCurrentlyFocusedComponent();
+    const auto typing = dynamic_cast<const juce::TextEditor*>(focused) != nullptr
+                     || dynamic_cast<const juce::ComboBox*>(focused) != nullptr;
+
+    if (! typing && cueList.triggerHotkey(key))
         return true;
 
-    if (key == juce::KeyPress::spaceKey)
+    if (const auto* info = settings.shortcuts.find(key))
     {
-        triggerGo();
-        return true;
-    }
-
-    if (key == juce::KeyPress::escapeKey)
-    {
-        stopAllCues();
-        return true;
-    }
-
-    if (key.getModifiers().isCommandDown())
-    {
-        const auto character = key.getTextCharacter();
-
-        if (character == 's') { saveWorkspace(); return true; }
-        if (character == 'S') { saveWorkspaceAs(); return true; }
-        if (character == 'o') { openWorkspace(); return true; }
-        if (character == 'd') { cueList.duplicateSelectedCue(); return true; }
-        if (character == 'c') { cueList.copySelectedCue(); return true; }
-        if (character == 'v') { cueList.pasteCues(); return true; }
-        if (character == 'p') { cueList.previewSelected(); return true; }
-        if (character == 'z') { cueList.undo(); return true; }
-        if (character == ']') { cueList.indentSelectedCue(); return true; }
-        if (character == '[') { cueList.outdentSelectedCue(); return true; }
-
-        if (key == juce::KeyPress::upKey) { cueList.moveSelectedCue(-1); return true; }
-        if (key == juce::KeyPress::downKey) { cueList.moveSelectedCue(1); return true; }
-    }
-    else if (key == juce::KeyPress::upKey || key == juce::KeyPress::downKey)
-    {
-        if (dynamic_cast<juce::TextEditor*>(juce::Component::getCurrentlyFocusedComponent()) != nullptr)
+        if (typing && ! ShortcutBindings::allowedWhileTyping(info->id))
             return false;
 
-        cueList.selectAdjacentCue(key == juce::KeyPress::upKey ? -1 : 1);
-        return true;
-    }
-    else if (key == juce::KeyPress::backspaceKey || key == juce::KeyPress::deleteKey)
-    {
-        cueList.deleteSelectedCue();
-        return true;
-    }
-    else if (key == juce::KeyPress::leftKey)
-    {
-        cueList.collapseSelectedGroup();
-        return true;
-    }
-    else if (key == juce::KeyPress::rightKey)
-    {
-        cueList.expandSelectedGroup();
-        return true;
+        return performShortcut(info->id);
     }
 
     return false;
@@ -528,7 +539,7 @@ void MainComponent::openWorkspace(const juce::File& source)
     audioExtractFolder = extractRoot;
     workspaceFile = source;
     toolbar.setMasterGain(data.masterGain);
-    engine.setMasterGain(data.masterGain);
+    engine.setMasterGain(toolbar.getAppliedMasterGain());
     notesBar.setText(data.notes);
     cueList.setCues(std::move(data.cues), data.standbyCueId);
     dirty = false;
