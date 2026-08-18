@@ -32,7 +32,7 @@ jobs:
 
       - name: Package (macOS)
         if: runner.os == 'macOS'
-        run: ditto -c -k --sequesterRsrc --keepParent build/MusiCue_artefacts/MusiCue.app "${{ matrix.artifact }}"
+        run: ditto -c -k --sequesterRsrc --keepParent build/MusiCue_artefacts/Release/MusiCue.app "${{ matrix.artifact }}"
 
       - name: Configure (Windows)
         if: runner.os == 'Windows'
