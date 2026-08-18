@@ -71,9 +71,9 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
     footerLabel.setFont(juce::Font(juce::FontOptions().withHeight(12.0f)));
     addAndMakeVisible(footerLabel);
 
-    inspectorLayout.setItemLayout(0, 150, -1, -0.6);
-    inspectorLayout.setItemLayout(1, 6, 6, 6);
-    inspectorLayout.setItemLayout(2, 150, 560, -0.4);
+    inspectorLayout.setItemLayout(0, 150, -1, -0.5);
+    inspectorLayout.setItemLayout(1, 12, 12, 12);
+    inspectorLayout.setItemLayout(2, 150, 560, -0.5);
     inspectorResizer = std::make_unique<juce::StretchableLayoutResizerBar>(&inspectorLayout, 1, false);
     addAndMakeVisible(*inspectorResizer);
 
@@ -81,21 +81,32 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
 
     toolbar.onAddCue = [this] { chooseAndAddCues(); };
     toolbar.onAddGroup = [this] { cueList.addGroupCue(); };
+    toolbar.onAddFade = [this] { cueList.addFadeCue(); };
     toolbar.onPreview = [this] { cueList.previewSelected(); };
-    toolbar.onStop = [this]
-    {
-        if (auto* cue = cueList.getSelectedCue())
-            engine.stopCue(cue->id);
-    };
+    toolbar.onStop = [this] { cueList.stopSelectedCue(); };
     toolbar.onPause = [this] { engine.setPaused(! engine.isPaused()); };
     toolbar.onPanic = [this] { stopAllCues(); };
     toolbar.onReset = [this] { cueList.resetStandby(); };
     toolbar.onMasterGain = [this](float gain) { engine.setMasterGain(gain); };
 
     cueList.durationProvider = [this](const juce::File& file) { return engine.getDurationForFile(file); };
-    cueList.onPlayCue = [this](const Cue& cue) { engine.playCue(cue); };
+    cueList.onPlayCue = [this](const Cue& cue)
+    {
+        return engine.playCue(cue, [this](int cueId) -> const Cue*
+        {
+            for (const auto& candidate : cueList.getCues())
+                if (candidate.id == cueId)
+                    return &candidate;
+            return nullptr;
+        });
+    };
+    cueList.onStopCue = [this](int cueId) { engine.stopCue(cueId); };
     cueList.onSelectionChanged = [this] { inspector.setCue(cueList.getSelectedCue()); };
-    cueList.onContentChanged = [this] { markDirty(); updateStatusDisplays(); };
+    cueList.onContentChanged = [this]
+    {
+        inspector.setAvailableCues(cueList.getCues());
+        markDirty(); updateStatusDisplays();
+    };
 
     engine.onCueFinished = [this](int cueId, bool completedNaturally)
     {
@@ -104,6 +115,7 @@ MainComponent::MainComponent(juce::PropertiesFile& props)
         if (completedNaturally)
             cueList.handleAutoContinue(cueId);
     };
+    engine.onCueStarted = [this](int cueId) { cueList.markCueStarted(cueId); };
 
     inspector.onCueEdited = [this]
     {
@@ -239,6 +251,8 @@ void MainComponent::resized()
 
     auto footerArea = area.removeFromBottom(26);
     area.removeFromBottom(6);
+    area.setLeft(0);
+    area.setRight(getWidth());
 
     if (inspectorVisible)
     {

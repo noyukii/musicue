@@ -6,6 +6,8 @@ namespace Palette
 {
     inline const juce::Colour windowBg     { 0xff242424 };
     inline const juce::Colour panelBg      { 0xff2b2b2b };
+    inline const juce::Colour inspectorBg  { 0xff202326 };
+    inline const juce::Colour inspectorBorder { 0xff101214 };
     inline const juce::Colour barBg        { 0xff3d3d3d };
     inline const juce::Colour controlBg    { 0xff3a3a3a };
     inline const juce::Colour controlDown  { 0xff4c4c4c };

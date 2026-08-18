@@ -165,6 +165,29 @@ public:
         return label;
     }
 
+    void drawStretchableLayoutResizerBar(juce::Graphics& g, int width, int height,
+                                         bool isVerticalBar, bool isMouseOver,
+                                         bool isMouseDragging) override
+    {
+        const auto active = isMouseOver || isMouseDragging;
+        const auto centreX = static_cast<float>(width) * 0.5f;
+        const auto centreY = static_cast<float>(height) * 0.5f;
+
+        g.fillAll(active ? Palette::controlDown : Palette::controlBg);
+        g.setColour(Palette::textPrimary.withAlpha(active ? 0.9f : 0.58f));
+
+        if (isVerticalBar)
+        {
+            g.fillRoundedRectangle(centreX - 2.5f, centreY - 10.0f, 1.5f, 20.0f, 0.75f);
+            g.fillRoundedRectangle(centreX + 1.0f, centreY - 10.0f, 1.5f, 20.0f, 0.75f);
+        }
+        else
+        {
+            g.fillRoundedRectangle(centreX - 10.0f, centreY - 2.5f, 20.0f, 1.5f, 0.75f);
+            g.fillRoundedRectangle(centreX - 10.0f, centreY + 1.0f, 20.0f, 1.5f, 0.75f);
+        }
+    }
+
     int getTabButtonOverlap(int) override { return 0; }
 
     void drawTabAreaBehindFrontButton(juce::TabbedButtonBar&, juce::Graphics& g,

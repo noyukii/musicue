@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.22)
 project(MusiCue VERSION 0.1.0 LANGUAGES C CXX)
 
+include(CTest)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -71,3 +73,24 @@ target_link_libraries(MusiCue PRIVATE
     juce::juce_recommended_lto_flags
     juce::juce_recommended_warning_flags
 )
+
+if (BUILD_TESTING)
+    juce_add_console_app(MusiCueTests PRODUCT_NAME "MusiCue Tests")
+
+    target_sources(MusiCueTests PRIVATE
+        Source/FadeCueTests.cpp
+        Source/WorkspaceFile.cpp
+    )
+
+    target_link_libraries(MusiCueTests PRIVATE
+        juce::juce_core
+        juce::juce_data_structures
+        juce::juce_events
+        juce::juce_graphics
+        juce::juce_gui_basics
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_warning_flags
+    )
+
+    add_test(NAME MusiCueTests COMMAND MusiCueTests)
+endif()

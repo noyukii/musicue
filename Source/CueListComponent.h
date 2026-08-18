@@ -1,6 +1,7 @@
 #pragma once
 
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <map>
 #include "Palette.h"
 #include "Cue.h"
 
@@ -15,11 +16,13 @@ public:
 
     void addCueFromFile(const juce::File& file, int insertIndex = -1);
     void addGroupCue();
+    void addFadeCue();
     void setCues(juce::Array<Cue> newCues, int standbyCueId);
     const juce::Array<Cue>& getCues() const { return cues; }
 
     bool triggerStandby();
     void previewSelected();
+    void stopSelectedCue();
     void resetStandby();
     void duplicateSelectedCue();
     void deleteSelectedCue();
@@ -31,6 +34,7 @@ public:
     void undo();
 
     void markCueFinished(int cueId);
+    void markCueStarted(int cueId);
     void markAllIdle();
     void refreshDisplay();
     bool triggerHotkey(const juce::KeyPress& key);
@@ -46,7 +50,8 @@ public:
     void setEditingEnabled(bool enabled);
 
     std::function<double(const juce::File&)> durationProvider;
-    std::function<void(const Cue&)> onPlayCue;
+    std::function<bool(const Cue&)> onPlayCue;
+    std::function<void(int)> onStopCue;
     std::function<void()> onSelectionChanged;
     std::function<void()> onContentChanged;
 
@@ -67,9 +72,19 @@ private:
     int findCueIndex(int id) const;
     int findVisibleRow(int id) const;
     int nextSiblingId(const Cue&) const;
-    void runCue(int index, bool advanceStandby);
-    void runGroup(int groupId);
+    bool runCue(int index, bool advanceStandby);
+    bool runGroup(Cue& group, bool advanceStandby);
     void advanceStandby(const Cue& cue);
+    int cueAfterSubtree(const Cue& cue) const;
+    int firstChildId(int parentId) const;
+    int chooseRandomChild(Cue& group);
+    bool isCueRunning(int cueId) const;
+    bool isDescendantOf(int cueId, int ancestorId) const;
+    juce::Array<int> subtreeIds(int rootId) const;
+    void updateGroupDurations();
+    double calculateGroupDuration(int groupId) const;
+    void paintGroupOutline(juce::Graphics&, int row, int width, int height) const;
+    juce::Colour groupColour(const Cue&) const;
     void notifyContentChanged();
     void rememberUndo();
     void normaliseStandby();
@@ -82,6 +97,8 @@ private:
     juce::Array<Cue> cues, clipboard;
     juce::Array<VisibleRow> visibleRows;
     std::vector<juce::Array<Cue>> undoStack;
+    std::map<int, int> activePlaylistChildren;
+    std::map<int, juce::Array<int>> randomHistory;
     int standbyCueId = 0;
     int nextCueId = 1;
     bool standbyLinked = true;

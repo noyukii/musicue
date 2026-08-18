@@ -21,6 +21,7 @@ ToolbarComponent::ToolbarComponent()
         juce::PopupMenu menu;
         menu.addItem("Audio Cue...", [this] { if (onAddCue != nullptr) onAddCue(); });
         menu.addItem("Group Cue", [this] { if (onAddGroup != nullptr) onAddGroup(); });
+        menu.addItem("Fade Cue", [this] { if (onAddFade != nullptr) onAddFade(); });
         menu.addSeparator();
         for (const auto& type : { "Video", "MIDI", "Network", "Light", "Cart" })
             menu.addItem(juce::String(type) + " cue - not supported yet", false, false, [] {});

@@ -4,11 +4,32 @@
 
 struct Cue
 {
-    enum class Kind { audio, group };
+    enum class Kind { audio, group, fade };
+    enum class GroupMode { timeline, playlist, startFirstAndEnter, startFirst, startRandom };
+    enum class FadeCurve { linear, easeIn, easeOut, sCurve };
+    enum class FadeStopPolicy { hold, stopTargets };
+
+    struct FadeAction
+    {
+        int targetCueId = 0;
+        double delaySeconds = 0.0;
+        double durationSeconds = 1.0;
+        bool fadeGain = true;
+        double targetGainDb = -60.0;
+        bool fadePan = false;
+        double targetPan = 0.0;
+        bool startIfStopped = false;
+        double startGainDb = -60.0;
+        bool stopAtEnd = false;
+        FadeCurve curve = FadeCurve::linear;
+    };
 
     int id = 0;
     int parentId = 0;       // 0 means root cue list
     Kind kind = Kind::audio;
+    GroupMode groupMode = GroupMode::timeline;
+    FadeStopPolicy fadeStopPolicy = FadeStopPolicy::hold;
+    juce::Array<FadeAction> fadeActions;
     juce::String number;
     juce::String name;
     juce::File file;
@@ -35,9 +56,18 @@ struct Cue
 
     bool isGroup() const { return kind == Kind::group; }
     bool isAudio() const { return kind == Kind::audio; }
+    bool isFade() const { return kind == Kind::fade; }
 
     double getEffectiveDuration() const
     {
+        if (isFade())
+        {
+            double duration = 0.0;
+            for (const auto& action : fadeActions)
+                duration = juce::jmax(duration, action.delaySeconds + action.durationSeconds);
+            return duration;
+        }
+
         if (trimEnd > trimStart)
             return trimEnd - trimStart;
 

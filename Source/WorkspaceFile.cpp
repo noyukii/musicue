@@ -3,7 +3,7 @@
 bool WorkspaceFile::save(const juce::File& targetFile, const WorkspaceData& data)
 {
     auto xml = std::make_unique<juce::XmlElement>("musicue-workspace");
-    xml->setAttribute("version", 2);
+    xml->setAttribute("version", 3);
     xml->setAttribute("masterGain", static_cast<double>(data.masterGain));
     xml->setAttribute("standbyCueId", data.standbyCueId);
     xml->setAttribute("notes", data.notes);
@@ -19,7 +19,8 @@ bool WorkspaceFile::save(const juce::File& targetFile, const WorkspaceData& data
         auto* cueXml = cuesXml->createNewChildElement("cue");
         cueXml->setAttribute("id", cue.id);
         cueXml->setAttribute("parentId", cue.parentId);
-        cueXml->setAttribute("kind", cue.isGroup() ? "group" : "audio");
+        cueXml->setAttribute("kind", cue.isGroup() ? "group" : (cue.isFade() ? "fade" : "audio"));
+        cueXml->setAttribute("groupMode", static_cast<int>(cue.groupMode));
         cueXml->setAttribute("number", cue.number);
         cueXml->setAttribute("name", cue.name);
         cueXml->setAttribute("duration", cue.durationSeconds);
@@ -42,6 +43,27 @@ bool WorkspaceFile::save(const juce::File& targetFile, const WorkspaceData& data
         cueXml->setAttribute("collapsed", cue.collapsed ? 1 : 0);
         cueXml->setAttribute("target", cue.target);
 
+        if (cue.isFade())
+        {
+            cueXml->setAttribute("fadeStopPolicy", static_cast<int>(cue.fadeStopPolicy));
+            auto* actionsXml = cueXml->createNewChildElement("fadeActions");
+            for (const auto& action : cue.fadeActions)
+            {
+                auto* actionXml = actionsXml->createNewChildElement("action");
+                actionXml->setAttribute("targetCueId", action.targetCueId);
+                actionXml->setAttribute("delay", action.delaySeconds);
+                actionXml->setAttribute("duration", action.durationSeconds);
+                actionXml->setAttribute("fadeGain", action.fadeGain ? 1 : 0);
+                actionXml->setAttribute("targetGainDb", action.targetGainDb);
+                actionXml->setAttribute("fadePan", action.fadePan ? 1 : 0);
+                actionXml->setAttribute("targetPan", action.targetPan);
+                actionXml->setAttribute("startIfStopped", action.startIfStopped ? 1 : 0);
+                actionXml->setAttribute("startGainDb", action.startGainDb);
+                actionXml->setAttribute("stopAtEnd", action.stopAtEnd ? 1 : 0);
+                actionXml->setAttribute("curve", static_cast<int>(action.curve));
+            }
+        }
+
         if (cue.isAudio() && cue.file.existsAsFile())
         {
             const auto fullPath = cue.file.getFullPathName();
@@ -59,9 +81,10 @@ bool WorkspaceFile::save(const juce::File& targetFile, const WorkspaceData& data
         }
     }
 
-    const auto tempXml = juce::File::getSpecialLocation(juce::File::tempDirectory)
-                             .getChildFile("musicue_" + juce::Uuid().toString() + ".xml");
-    tempXml.replaceWithText(xml->toString());
+    const auto tempXml = targetFile.getSiblingFile(
+        ".musicue_" + juce::Uuid().toString() + ".xml");
+    if (! tempXml.replaceWithText(xml->toString()))
+        return false;
     builder.addFile(tempXml, 6, "workspace.xml");
 
     // Build beside destination, then replace. Existing workspace survives failed writes.
@@ -86,7 +109,8 @@ bool WorkspaceFile::save(const juce::File& targetFile, const WorkspaceData& data
         return false;
     }
 
-    return temporary.replaceFileIn(targetFile);
+    return targetFile.existsAsFile() ? temporary.replaceFileIn(targetFile)
+                                     : temporary.moveFileTo(targetFile);
 }
 
 bool WorkspaceFile::load(const juce::File& sourceFile, WorkspaceData& data,
@@ -129,8 +153,11 @@ bool WorkspaceFile::load(const juce::File& sourceFile, WorkspaceData& data,
             Cue cue;
             cue.id = cueXml->getIntAttribute("id");
             cue.parentId = cueXml->getIntAttribute("parentId", 0);
-            cue.kind = cueXml->getStringAttribute("kind") == "group"
-                           ? Cue::Kind::group : Cue::Kind::audio;
+            const auto kind = cueXml->getStringAttribute("kind");
+            cue.kind = kind == "group" ? Cue::Kind::group
+                     : kind == "fade" ? Cue::Kind::fade : Cue::Kind::audio;
+            cue.groupMode = static_cast<Cue::GroupMode>(juce::jlimit(
+                0, 4, cueXml->getIntAttribute("groupMode", 0)));
             cue.number = cueXml->getStringAttribute("number");
             cue.name = cueXml->getStringAttribute("name");
             cue.durationSeconds = cueXml->getDoubleAttribute("duration", 0.0);
@@ -152,6 +179,30 @@ bool WorkspaceFile::load(const juce::File& sourceFile, WorkspaceData& data,
             cue.hotkey = cueXml->getStringAttribute("hotkey");
             cue.collapsed = cueXml->getIntAttribute("collapsed", 0) != 0;
             cue.target = cueXml->getStringAttribute("target", "Main Output");
+            cue.fadeStopPolicy = static_cast<Cue::FadeStopPolicy>(juce::jlimit(
+                0, 1, cueXml->getIntAttribute("fadeStopPolicy", 0)));
+
+            if (auto* actionsXml = cueXml->getChildByName("fadeActions"))
+            {
+                for (auto* actionXml : actionsXml->getChildIterator())
+                {
+                    Cue::FadeAction action;
+                    action.targetCueId = actionXml->getIntAttribute("targetCueId");
+                    action.delaySeconds = juce::jmax(0.0, actionXml->getDoubleAttribute("delay", 0.0));
+                    action.durationSeconds = juce::jmax(0.0, actionXml->getDoubleAttribute("duration", 1.0));
+                    action.fadeGain = actionXml->getIntAttribute("fadeGain", 1) != 0;
+                    action.targetGainDb = juce::jlimit(-60.0, 6.0, actionXml->getDoubleAttribute("targetGainDb", -60.0));
+                    action.fadePan = actionXml->getIntAttribute("fadePan", 0) != 0;
+                    action.targetPan = juce::jlimit(-1.0, 1.0, actionXml->getDoubleAttribute("targetPan", 0.0));
+                    action.startIfStopped = actionXml->getIntAttribute("startIfStopped", 0) != 0;
+                    action.startGainDb = juce::jlimit(-60.0, 6.0, actionXml->getDoubleAttribute("startGainDb", -60.0));
+                    action.stopAtEnd = actionXml->getIntAttribute("stopAtEnd", 0) != 0;
+                    action.curve = static_cast<Cue::FadeCurve>(juce::jlimit(
+                        0, 3, actionXml->getIntAttribute("curve", 0)));
+                    if (action.targetCueId > 0 && (action.fadeGain || action.fadePan))
+                        cue.fadeActions.add(action);
+                }
+            }
 
             const auto entryName = cueXml->getStringAttribute("audioEntry");
 
