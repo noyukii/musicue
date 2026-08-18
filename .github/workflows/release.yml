@@ -34,24 +34,7 @@ jobs:
 
       - name: Package (macOS)
         if: runner.os == 'macOS'
-        run: |
-          APP="build/MusiCue_artefacts/Release/MusiCue.app"
-          # Ad-hoc sign so the bundle is a valid Mach-O image. A Developer ID
-          # + notarization would be needed to skip Gatekeeper entirely.
-          codesign --force --deep --sign - "$APP"
-          codesign --verify --verbose=2 "$APP"
-
-          STAGE="${RUNNER_TEMP}/musicue-macos"
-          mkdir -p "$STAGE"
-          ditto "$APP" "$STAGE/MusiCue.app"
-          cat > "$STAGE/If macOS says MusiCue is damaged, open this.command" << 'EOF'
-          #!/bin/bash
-          cd "$(dirname "$0")"
-          xattr -cr "MusiCue.app"
-          open "MusiCue.app"
-          EOF
-          chmod +x "$STAGE/"*.command
-          ditto -c -k "$STAGE" "${{ matrix.artifact }}"
+        run: ditto -c -k --sequesterRsrc --keepParent build/MusiCue_artefacts/Release/MusiCue.app "${{ matrix.artifact }}"
 
       - name: Configure (Windows)
         if: runner.os == 'Windows'

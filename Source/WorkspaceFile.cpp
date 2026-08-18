@@ -90,23 +90,17 @@ bool WorkspaceFile::save(const juce::File& targetFile, const WorkspaceData& data
     // Build beside destination, then replace. Existing workspace survives failed writes.
     const auto temporary = targetFile.getSiblingFile(targetFile.getFileName() + ".tmp");
     temporary.deleteFile();
+    juce::FileOutputStream output(temporary);
 
-    // Scope the stream: it must flush and close before the replace below,
-    // otherwise the move fails on Windows with the handle still open.
-    auto ok = false;
+    if (! output.openedOk())
     {
-        juce::FileOutputStream output(temporary);
-
-        if (! output.openedOk())
-        {
-            tempXml.deleteFile();
-            return false;
-        }
-
-        output.setPosition(0);
-        output.truncate();
-        ok = builder.writeToStream(output, nullptr);
+        tempXml.deleteFile();
+        return false;
     }
+
+    output.setPosition(0);
+    output.truncate();
+    const auto ok = builder.writeToStream(output, nullptr);
     tempXml.deleteFile();
 
     if (! ok)
