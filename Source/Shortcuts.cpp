@@ -47,6 +47,7 @@ const juce::Array<ShortcutInfo>& ShortcutBindings::catalog()
             { ShortcutId::ungroupSelected, "ungroupSelected", "Edit",       "Ungroup" },
             { ShortcutId::selectPrevious,  "selectPrevious",  "Navigation", "Select previous cue" },
             { ShortcutId::selectNext,      "selectNext",      "Navigation", "Select next cue" },
+            { ShortcutId::selectAll,       "selectAll",       "Navigation", "Select all cues" },
             { ShortcutId::collapseGroup,   "collapseGroup",   "Navigation", "Collapse group" },
             { ShortcutId::expandGroup,     "expandGroup",     "Navigation", "Expand group" },
             { ShortcutId::open,            "open",            "Workspace",  "Open workspace" },
@@ -123,6 +124,8 @@ juce::StringArray ShortcutBindings::defaultDescriptions(ShortcutId id)
             return descriptionsFromKeys({ juce::KeyPress(juce::KeyPress::upKey) });
         case ShortcutId::selectNext:
             return descriptionsFromKeys({ juce::KeyPress(juce::KeyPress::downKey) });
+        case ShortcutId::selectAll:
+            return descriptionsFromKeys({ commandKey('a', 'a') });
         case ShortcutId::collapseGroup:
             return descriptionsFromKeys({ juce::KeyPress(juce::KeyPress::leftKey) });
         case ShortcutId::expandGroup:

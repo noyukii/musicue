@@ -90,25 +90,11 @@ namespace
         result.peaks.assign(static_cast<size_t>(columns) * 2, 0.0f);
 
         const auto total = reader->lengthInSamples;
-        constexpr int maxWindow = 1024;
-        juce::AudioBuffer<float> chunk(1, maxWindow);
+        constexpr juce::int64 maxSamplesToScan = 8 * 1024 * 1024;
+        const auto samplesPerColumn = juce::jmax<juce::int64>(1, maxSamplesToScan / columns);
 
-        auto scanWindow = [&](juce::int64 pos, int numSamples, float& mn, float& mx)
-        {
-            if (pos >= total || numSamples <= 0)
-                return;
-
-            const int toRead = static_cast<int>(juce::jmin<juce::int64>(numSamples, total - pos));
-            reader->read(&chunk, 0, toRead, pos, true, false);
-            const float* samples = chunk.getReadPointer(0);
-
-            for (int i = 0; i < toRead; ++i)
-            {
-                mn = juce::jmin(mn, samples[i]);
-                mx = juce::jmax(mx, samples[i]);
-            }
-        };
-
+        // Walk left-to-right so compressed formats keep a sequential decode
+        // position. Random/backward seeks on mp3/m4a/aac can stall for a long time.
         for (int col = 0; col < columns; ++col)
         {
             if ((col & 7) == 0 && cancelled != nullptr && cancelled->load())
@@ -117,17 +103,13 @@ namespace
             const auto colStart = static_cast<juce::int64>(col) * total / columns;
             const auto colEnd = static_cast<juce::int64>(col + 1) * total / columns;
             const auto colLen = juce::jmax<juce::int64>(1, colEnd - colStart);
-            const int window = static_cast<int>(juce::jmin<juce::int64>(maxWindow, colLen));
+            const auto window = juce::jmin(colLen, samplesPerColumn);
 
-            float mn = 0.0f;
-            float mx = 0.0f;
-            scanWindow(colStart, window, mn, mx);
+            float lowestLeft = 0.0f, highestLeft = 0.0f, lowestRight = 0.0f, highestRight = 0.0f;
+            reader->readMaxLevels(colStart, window, lowestLeft, highestLeft, lowestRight, highestRight);
 
-            if (colLen > maxWindow * 2)
-                scanWindow(colStart + colLen / 2, window, mn, mx);
-
-            result.peaks[static_cast<size_t>(col) * 2] = mn;
-            result.peaks[static_cast<size_t>(col) * 2 + 1] = mx;
+            result.peaks[static_cast<size_t>(col) * 2] = juce::jmin(lowestLeft, lowestRight);
+            result.peaks[static_cast<size_t>(col) * 2 + 1] = juce::jmax(highestLeft, highestRight);
         }
 
         return result;
@@ -150,11 +132,17 @@ namespace
             pendingTrimStart = newTrimStart;
             pendingTrimEnd = newTrimEnd;
 
-            if (file == requestedFile && hasPeaks)
+            if (file == requestedFile)
             {
-                applyPendingTrim();
-                repaint();
-                return;
+                if (hasPeaks)
+                {
+                    applyPendingTrim();
+                    repaint();
+                    return;
+                }
+
+                if (loadCancelled != nullptr)
+                    return;
             }
 
             requestedFile = file;
@@ -177,10 +165,7 @@ namespace
                 return;
             }
 
-            if (isShowing())
-                startBackgroundLoad();
-            else
-                repaint();
+            startBackgroundLoad();
         }
 
         void setTrim(double newTrimStart, double newTrimEnd)
@@ -203,10 +188,14 @@ namespace
 
             if (peaks.empty() || lengthSeconds <= 0.0)
             {
+                if (requestedFile != juce::File() && loadCancelled == nullptr && ! loadFailed)
+                    startBackgroundLoad();
+
                 g.setColour(Palette::textDim);
                 g.setFont(juce::Font(juce::FontOptions().withHeight(13.0f)));
-                g.drawText(requestedFile != juce::File() ? "Loading waveform..." : "No audio loaded",
-                           waveArea, juce::Justification::centred);
+                const auto message = requestedFile == juce::File() ? "No audio loaded"
+                                     : (loadFailed ? "Couldn't load waveform" : "Loading waveform...");
+                g.drawText(message, waveArea, juce::Justification::centred);
                 return;
             }
 
@@ -279,7 +268,8 @@ namespace
 
         void visibilityChanged() override
         {
-            if (isShowing() && requestedFile != juce::File() && ! hasPeaks && loadCancelled == nullptr)
+            if (isShowing() && requestedFile != juce::File() && ! hasPeaks
+                && loadCancelled == nullptr && ! loadFailed)
                 startBackgroundLoad();
         }
 
@@ -303,6 +293,7 @@ namespace
             peaks.clear();
             wavePath.clear();
             hasPeaks = false;
+            loadFailed = false;
             lengthSeconds = 0.0;
         }
 
@@ -385,8 +376,10 @@ namespace
                         return;
 
                     safeThis->adoptPeaks(computed.peaks, computed.lengthSeconds);
-                    safeThis->peakCache[file.getFullPathName()] = { modTime, safeThis->peaks,
-                                                                    safeThis->lengthSeconds };
+                    safeThis->loadFailed = ! safeThis->hasPeaks;
+                    if (safeThis->hasPeaks)
+                        safeThis->peakCache[file.getFullPathName()] = { modTime, safeThis->peaks,
+                                                                        safeThis->lengthSeconds };
                     safeThis->applyPendingTrim();
                     safeThis->loadCancelled.reset();
                     safeThis->repaint();
@@ -418,6 +411,7 @@ namespace
         double pendingTrimEnd = 0.0;
         int dragging = 0;
         bool hasPeaks = false;
+        bool loadFailed = false;
         bool trimDirty = false;
     };
 }

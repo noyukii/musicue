@@ -1100,6 +1100,14 @@ void CueListComponent::selectAdjacentCue(int delta)
         table.selectRow(next);
 }
 
+void CueListComponent::selectAllCues()
+{
+    if (visibleRows.isEmpty())
+        return;
+
+    table.selectRangeOfRows(0, visibleRows.size() - 1);
+}
+
 Cue* CueListComponent::getSelectedCue() { const auto row = table.getSelectedRow(); return juce::isPositiveAndBelow(row, visibleRows.size()) ? &cues.getReference(visibleRows[row].cueIndex) : nullptr; }
 const Cue* CueListComponent::getStandbyCue() const { const auto i = findCueIndex(standbyCueId); return i >= 0 ? &cues.getReference(i) : nullptr; }
 bool CueListComponent::hasStandby() const { return getStandbyCue() != nullptr; }

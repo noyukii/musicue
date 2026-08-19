@@ -24,6 +24,7 @@ enum class ShortcutId
     ungroupSelected,
     selectPrevious,
     selectNext,
+    selectAll,
     collapseGroup,
     expandGroup,
     open,

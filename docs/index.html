@@ -2,213 +2,100 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Download MusiCue for macOS and Windows.">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="description" content="MusiCue: audio cue playback for live shows. Download for macOS and Windows.">
+    <meta name="theme-color" content="#242424">
     <title>MusiCue</title>
     <link rel="icon" href="assets/appicon_musicue.png">
-    <style>
-        :root {
-            color-scheme: dark;
-            --canvas: #242424;
-            --field: #1e1e1e;
-            --line: #3d3d3d;
-            --text: #d9d9d9;
-            --muted: #8e8e8e;
-            --ready: #43d158;
-            --notice: #d1a343;
-        }
-
-        * { box-sizing: border-box; }
-
-        body {
-            min-width: 320px;
-            min-height: 100vh;
-            margin: 0;
-            display: grid;
-            place-items: center;
-            background: var(--canvas);
-            color: var(--text);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        }
-
-        main {
-            width: min(100% - 40px, 400px);
-            padding: 48px 0;
-            text-align: center;
-        }
-
-        .app-icon {
-            width: 120px;
-            height: 120px;
-            margin: 0 auto;
-            display: block;
-            border-radius: 28px;
-        }
-
-        h1 {
-            margin: 22px 0 0;
-            font-size: 1.55rem;
-            font-weight: 700;
-            letter-spacing: -.02em;
-        }
-
-        .release-meta {
-            margin: 6px 0 0;
-            color: var(--muted);
-            font-size: .92rem;
-        }
-
-        .files {
-            margin: 28px 0 0;
-            padding: 0;
-            list-style: none;
-        }
-
-        .file + .file { margin-top: 10px; }
-
-        .file a {
-            min-height: 56px;
-            padding: 0 18px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 16px;
-            background: var(--field);
-            border: 1px solid var(--line);
-            border-radius: 12px;
-            color: var(--text);
-            text-decoration: none;
-            text-align: left;
-            transition: border-color 120ms ease, color 120ms ease;
-        }
-
-        .file a:hover {
-            border-color: var(--ready);
-            color: var(--ready);
-        }
-
-        .file-name {
-            min-width: 0;
-            overflow-wrap: anywhere;
-            font-size: .95rem;
-            font-weight: 650;
-        }
-
-        .file-meta {
-            flex: 0 0 auto;
-            color: var(--muted);
-            font-size: .72rem;
-            font-weight: 700;
-            letter-spacing: .06em;
-            text-transform: uppercase;
-        }
-
-        .status {
-            margin: 28px 0 0;
-            color: var(--muted);
-            font-size: .92rem;
-            line-height: 1.5;
-        }
-
-        .status a { color: inherit; }
-
-        .retry {
-            margin-top: 10px;
-            padding: 0;
-            border: 0;
-            border-bottom: 1px solid currentColor;
-            background: transparent;
-            color: var(--text);
-            cursor: pointer;
-            font: inherit;
-        }
-
-        .notice {
-            margin: 28px 0 0;
-            padding: 14px 16px;
-            background: var(--field);
-            border: 1px solid var(--line);
-            border-left: 2px solid var(--notice);
-            border-radius: 12px;
-            text-align: left;
-        }
-
-        .notice summary {
-            color: var(--text);
-            cursor: pointer;
-            font-size: .88rem;
-            font-weight: 650;
-        }
-
-        .notice summary::marker { color: var(--notice); }
-
-        .notice p {
-            margin: 12px 0 0;
-            color: var(--muted);
-            font-size: .86rem;
-            line-height: 1.55;
-        }
-
-        .notice a { color: inherit; }
-
-        .notice code {
-            color: var(--muted);
-            font-size: .78rem;
-            overflow-wrap: anywhere;
-        }
-
-        .notice + .notice { margin-top: 10px; }
-
-        .footer {
-            margin: 32px 0 0;
-            color: var(--muted);
-            font-size: .78rem;
-        }
-
-        .footer a { color: inherit; }
-
-        .retry:focus-visible,
-        a:focus-visible,
-        summary:focus-visible {
-            outline: 3px solid var(--ready);
-            outline-offset: 3px;
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .file a { transition: none; }
-        }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=Source+Sans+3:wght@400;600&display=swap">
+    <link rel="stylesheet" href="site.css">
 </head>
 <body>
-    <main>
-        <img class="app-icon" src="assets/appicon_musicue.png" alt="MusiCue">
-        <h1>MusiCue</h1>
-        <p class="release-meta" id="release-meta"></p>
-        <ul class="files" id="file-list" aria-busy="true" aria-live="polite"></ul>
-        <p class="status" id="status">Loading latest release…</p>
+    <a class="skip" href="#downloads">Skip to downloads</a>
+    <div class="wrap">
+        <header>
+            <a class="brand" href="index.html">
+                <img src="assets/appicon_musicue.png" width="48" height="48" alt="">
+                <span>MusiCue</span>
+            </a>
+            <nav class="nav" aria-label="Site">
+                <a href="guide.html">Docs</a>
+                <a href="https://github.com/noyukii/musicue">Source</a>
+            </nav>
+        </header>
 
-        <details class="notice">
-            <summary>macOS may say MusiCue is damaged</summary>
-            <p>MusiCue is not notarized with Apple yet. Gatekeeper treats unsigned apps downloaded from the internet as damaged and refuses to open them.</p>
-            <p>After unzipping, run the included <code>If macOS says MusiCue is damaged, open this.command</code> (right-click → Open if macOS blocks the helper too), or clear the quarantine in Terminal:</p>
-            <p><code>xattr -cr /Applications/MusiCue.app</code></p>
-            <p>Then open MusiCue normally. You can also allow it under System Settings → Privacy &amp; Security.</p>
-        </details>
+        <main>
+            <h1>Audio cues for the booth.</h1>
+            <p class="lead">Load a workspace, overlap playback, press GO. macOS and Windows.</p>
 
-        <details class="notice">
-            <summary>Windows may flag this download as unsafe</summary>
-            <p>MusiCue is not code-signed yet. Microsoft Defender may block MusiCue.exe or quarantine it as a trojan. This is a false positive.</p>
-            <p>Each release is built in the open from source by <a href="https://github.com/noyukii/musicue/actions">GitHub Actions</a>.</p>
-            <p>If it was already quarantined, open Windows Security → Virus &amp; threat protection → Protection history, find the MusiCue entry and choose Restore. If SmartScreen blocks it instead, choose More info → Run anyway.</p>
-        </details>
+            <section id="downloads" aria-labelledby="downloads-heading">
+                <h2 id="downloads-heading">Latest files</h2>
+                <p class="release-meta" id="release-meta"></p>
+                <div class="cue-sheet">
+                    <div class="cues-head" aria-hidden="true"><span>Q</span><span>Name</span><span>Size</span></div>
+                    <ol class="cues" id="file-list" aria-busy="true" aria-live="polite"></ol>
+                </div>
+                <p class="status" id="status">Loading latest release…</p>
+                <noscript>
+                    <p class="status">JavaScript is off, so this page cannot list files. <a href="https://github.com/noyukii/musicue/releases">Download from GitHub Releases</a>.</p>
+                </noscript>
+            </section>
 
-        <p class="footer"><a href="https://github.com/noyukii/musicue/releases">All releases on GitHub</a></p>
-    </main>
+            <details class="notice">
+                <summary>macOS may say MusiCue is damaged</summary>
+                <p>MusiCue is not notarized with Apple yet. Gatekeeper treats unsigned apps downloaded from the internet as damaged and refuses to open them.</p>
+                <p>After unzipping, run the included <code>If macOS says MusiCue is damaged, open this.command</code> (right-click → Open if macOS blocks the helper too), or clear the quarantine in Terminal:</p>
+                <p><code>xattr -cr /Applications/MusiCue.app</code></p>
+                <p>Then open MusiCue normally. You can also allow it under System Settings → Privacy &amp; Security.</p>
+            </details>
+
+            <details class="notice">
+                <summary>Windows may flag this download as unsafe</summary>
+                <p>MusiCue is not code-signed yet. Microsoft Defender may block MusiCue.exe or quarantine it as a trojan. This is a false positive.</p>
+                <p>Each release is built in the open from source by <a href="https://github.com/noyukii/musicue/actions">GitHub Actions</a>.</p>
+                <p>If it was already quarantined, open Windows Security → Virus &amp; threat protection → Protection history, find the MusiCue entry and choose Restore. If SmartScreen blocks it instead, choose More info → Run anyway.</p>
+            </details>
+        </main>
+
+        <footer>
+            <a href="guide.html">Docs</a>
+            ·
+            <a href="https://github.com/noyukii/musicue/releases">All releases on GitHub</a>
+        </footer>
+    </div>
     <script>
         const fileList = document.querySelector('#file-list');
         const releaseMeta = document.querySelector('#release-meta');
         const status = document.querySelector('#status');
         const releaseApiUrl = 'https://api.github.com/repos/noyukii/musicue/releases/latest';
+        const assetCap = 12;
+
+        function hostPlatform() {
+            const ua = navigator.userAgent;
+            if (/Windows/i.test(ua)) return 'windows';
+            if (/Mac OS X|Macintosh/i.test(ua)) return 'macos';
+            return '';
+        }
+
+        function assetPlatform(name) {
+            const n = String(name).toLowerCase();
+            if (n.includes('windows') || n.includes('win64') || n.includes('win32')) return 'windows';
+            if (n.includes('macos') || n.includes('darwin') || n.includes('osx')) return 'macos';
+            return '';
+        }
+
+        function downloadHref(url) {
+            try {
+                const parsed = new URL(url);
+                if (parsed.protocol !== 'https:') return '';
+                if (parsed.hostname !== 'github.com' && parsed.hostname !== 'objects.githubusercontent.com') return '';
+                return parsed.href;
+            } catch {
+                return '';
+            }
+        }
 
         function formatDate(value) {
             return new Intl.DateTimeFormat(undefined, {
@@ -219,20 +106,36 @@
         }
 
         function formatSize(bytes) {
-            if (!Number.isFinite(bytes) || bytes < 1024) return bytes + ' B';
+            if (!Number.isFinite(bytes)) return '';
+            if (bytes < 1024) return bytes + ' B';
             const units = ['KB', 'MB', 'GB'];
             const unit = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length);
             return (bytes / (1024 ** unit)).toFixed(unit === 1 ? 0 : 1) + ' ' + units[unit - 1];
         }
 
         function showFiles(release) {
-            const assets = Array.isArray(release.assets) ? release.assets : [];
+            const host = hostPlatform();
+            const rawAssets = Array.isArray(release.assets) ? release.assets.slice(0, assetCap) : [];
             const publishedAt = release.published_at || release.created_at;
             const version = release.name || release.tag_name;
+            const assets = [];
+
+            for (const asset of rawAssets) {
+                const href = downloadHref(asset.browser_download_url);
+                if (!href || !asset.name) continue;
+                assets.push({
+                    name: String(asset.name),
+                    href,
+                    size: asset.size,
+                    platform: assetPlatform(asset.name)
+                });
+            }
+
+            assets.sort((a, b) => Number(b.platform === host) - Number(a.platform === host));
 
             releaseMeta.textContent = publishedAt
                 ? version + ' · ' + formatDate(publishedAt)
-                : version;
+                : (version || '');
 
             fileList.replaceChildren();
 
@@ -241,22 +144,31 @@
                 return;
             }
 
-            for (const asset of assets) {
+            for (const [index, asset] of assets.entries()) {
                 const item = document.createElement('li');
                 item.className = 'file';
+                const isGo = host !== '' && asset.platform === host;
+                if (isGo) item.classList.add('is-go');
 
                 const link = document.createElement('a');
-                link.href = asset.browser_download_url;
+                link.href = asset.href;
+                if (isGo) link.setAttribute('aria-current', 'true');
+
+                const q = document.createElement('span');
+                q.className = 'q';
+                q.textContent = String(index + 1);
 
                 const name = document.createElement('span');
                 name.className = 'file-name';
                 name.textContent = asset.name;
 
-                const size = document.createElement('span');
-                size.className = 'file-meta';
-                size.textContent = formatSize(asset.size);
+                const meta = document.createElement('span');
+                meta.className = 'file-meta';
+                meta.textContent = isGo
+                    ? (host === 'macos' ? 'This Mac · ' : 'This PC · ') + formatSize(asset.size)
+                    : formatSize(asset.size);
 
-                link.append(name, size);
+                link.append(q, name, meta);
                 item.append(link);
                 fileList.append(item);
             }
@@ -270,17 +182,28 @@
             releaseMeta.textContent = '';
             status.textContent = 'Loading latest release…';
 
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 8000);
+
             try {
                 const response = await fetch(releaseApiUrl, {
-                    headers: { Accept: 'application/vnd.github+json' }
+                    headers: { Accept: 'application/vnd.github+json' },
+                    signal: controller.signal
                 });
                 if (response.status === 404) {
-                    status.textContent = 'No releases published yet.';
+                    status.replaceChildren();
+                    status.append('No releases published yet. ');
+                    const all = document.createElement('a');
+                    all.href = 'https://github.com/noyukii/musicue/releases';
+                    all.textContent = 'Open GitHub Releases';
+                    status.append(all);
                     return;
                 }
                 if (!response.ok) throw new Error('GitHub releases request failed');
 
-                showFiles(await response.json());
+                const payload = await response.json();
+                if (!payload || typeof payload !== 'object') throw new Error('Unexpected release payload');
+                showFiles(payload);
             } catch {
                 status.replaceChildren('Could not load the latest release. ');
                 const retry = document.createElement('button');
@@ -289,7 +212,14 @@
                 retry.textContent = 'Try again';
                 retry.addEventListener('click', loadLatestRelease, { once: true });
                 status.append(retry);
+                status.append(' or ');
+                const all = document.createElement('a');
+                all.href = 'https://github.com/noyukii/musicue/releases';
+                all.textContent = 'open GitHub Releases';
+                status.append(all);
+                status.append('.');
             } finally {
+                clearTimeout(timer);
                 fileList.setAttribute('aria-busy', 'false');
             }
         }

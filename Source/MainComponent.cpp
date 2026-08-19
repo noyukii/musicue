@@ -276,6 +276,7 @@ bool MainComponent::performShortcut(ShortcutId id)
         case ShortcutId::ungroupSelected: cueList.ungroupSelectedCue(); return true;
         case ShortcutId::selectPrevious:  cueList.selectAdjacentCue(-1); return true;
         case ShortcutId::selectNext:      cueList.selectAdjacentCue(1); return true;
+        case ShortcutId::selectAll:       cueList.selectAllCues(); return true;
         case ShortcutId::collapseGroup:   cueList.collapseSelectedGroup(); return true;
         case ShortcutId::expandGroup:     cueList.expandSelectedGroup(); return true;
         case ShortcutId::open:            openWorkspace(); return true;
